@@ -1,49 +1,208 @@
 """
-creative_performance/train.py - Creative Performance Training Script
-====================================================================
-Marketing Intelligence AI Platform
+train.py
+
+Creative Performance Prediction
+
+Pipeline
+
+1. Load Dataset
+2. Preprocess
+3. Feature Engineering
+4. Train CatBoost
+5. Evaluate
+6. SHAP Explainability
+7. Visualization
+8. Save Model
 """
 
-import logging
+import joblib
+import pandas as pd
 
-from creative_performance.config import CATBOOST_DEFAULT_PARAMS, CATBOOST_MODEL_PATH
-from creative_performance.model import CatBoostCreativeModel
-from creative_performance.preprocess import CreativePreprocessor
-from shared.data_loader import DataLoader
-from shared.metrics import regression_metrics
+from sklearn.model_selection import train_test_split
 
-logger = logging.getLogger(__name__)
+from .config import (
+    DATA_PATH,
+    MODEL_DIR,
+    RANDOM_STATE,
+    TEST_SIZE,
+    TARGET_COLUMN,
+    FEATURE_COLUMNS
+)
+
+from .preprocess import preprocess
+from .feature_engineering import create_features
+
+from .model import build_model
+
+from .evaluation import CreativeEvaluator
+from .visualization import CreativeVisualizer
+from .feature_importance import FeatureImportance
 
 
 class CreativeTrainer:
-    """
-    Orchestrates training of the Creative Performance model.
 
-    TODO:
-        - Load and preprocess creative data.
-        - Train CatBoost model.
-        - Evaluate on validation set.
-        - Persist model to disk in CatBoost native format.
-    """
+    def __init__(self):
 
-    def __init__(self) -> None:
-        self.preprocessor = CreativePreprocessor()
-        self.model = CatBoostCreativeModel(params=CATBOOST_DEFAULT_PARAMS)
-        logger.info("CreativeTrainer initialised.")
+        self.model = build_model()
 
-    def run(self) -> None:
-        """Execute the creative performance training pipeline. TODO: Implement."""
-        logger.info("Starting Creative Performance training pipeline. TODO: Implement.")
+        self.evaluator = CreativeEvaluator()
 
-        # TODO: df = DataLoader.load_cleaned()
-        # TODO: X, y = self.preprocessor.fit_transform(df)
-        # TODO: self.model.fit(X_train, y_train, X_val, y_val)
-        # TODO: metrics = regression_metrics(y_test, self.model.predict(X_test))
-        # TODO: self.model.save(CATBOOST_MODEL_PATH)
+        self.visualizer = CreativeVisualizer()
 
-        logger.info("Creative training complete (placeholder).")
+    ###########################################################
 
+    def load_dataset(self):
+
+        print("Loading Dataset...")
+
+        df = pd.read_csv(DATA_PATH)
+
+        return df
+
+    ###########################################################
+
+    def prepare(self, dataframe):
+        dataframe = dataframe[FEATURE_COLUMNS + [TARGET_COLUMN]]
+        dataframe = create_features(dataframe)
+        dataframe = preprocess(dataframe)
+        X = dataframe.drop(columns=[TARGET_COLUMN])
+        y = dataframe[TARGET_COLUMN]
+        return X, y
+
+    ###########################################################
+
+    def train(self):
+
+        df = self.load_dataset()
+
+        X, y = self.prepare(df)
+
+        X_train, X_test, y_train, y_test = train_test_split(
+
+            X,
+
+            y,
+
+            test_size=TEST_SIZE,
+
+            random_state=RANDOM_STATE,
+
+            stratify=y
+
+        )
+
+        print("Training CatBoost...")
+
+        self.model.fit(
+
+            X_train,
+
+            y_train
+
+        )
+
+        MODEL_DIR.mkdir(
+
+            parents=True,
+
+            exist_ok=True
+
+        )
+
+        self.model.save_model(
+
+            MODEL_DIR /
+
+            "catboost.cbm"
+
+        )
+
+        joblib.dump(
+
+            list(X.columns),
+
+            MODEL_DIR /
+
+            "feature_columns.pkl"
+
+        )
+
+        print("Model Saved.")
+
+        predictions = self.model.predict(
+
+            X_test
+
+        )
+
+        probabilities = self.model.predict_proba(
+
+            X_test
+
+        )[:,1]
+
+        self.evaluator.evaluate_all(
+
+            y_test,
+
+            predictions,
+
+            probabilities
+
+        )
+
+        self.visualizer.visualize_all(
+
+            self.model,
+
+            X_test,
+
+            y_test,
+
+            probabilities,
+
+            predictions,
+
+            X.columns
+
+        )
+
+        explain = FeatureImportance(
+
+            self.model
+
+        )
+
+        explain.explain_all(
+
+            X_test,
+
+            X.columns
+
+        )
+
+        print()
+
+        print("="*50)
+
+        print("Creative Performance Training Completed")
+
+        print("="*50)
+
+
+############################################################
+
+
+def main():
+
+    trainer = CreativeTrainer()
+
+    trainer.train()
+
+
+############################################################
 
 if __name__ == "__main__":
-    trainer = CreativeTrainer()
-    trainer.run()
+
+    main()
+

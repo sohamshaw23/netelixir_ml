@@ -1,11 +1,44 @@
 """
-models/preprocessors/__init__.py
-Artefact sub-package for shared preprocessing artefacts.
+Preprocessing Artifacts
+=======================
 
-Files
------
-scaler.pkl          — Fitted StandardScaler or MinMaxScaler (joblib).
-encoder.pkl         — Fitted LabelEncoder / OrdinalEncoder (joblib).
-imputer.pkl         — Fitted SimpleImputer (joblib).
-feature_columns.pkl — Ordered list of feature column names (joblib).
+Contains
+
+• Standard Scaler
+• Label Encoder
+• Simple Imputer
+• Feature Columns
 """
+
+from pathlib import Path
+
+MODEL_DIR = Path(__file__).resolve().parent
+
+SCALER = MODEL_DIR / "scaler.pkl"
+
+ENCODER = MODEL_DIR / "encoder.pkl"
+
+IMPUTER = MODEL_DIR / "imputer.pkl"
+
+FEATURE_COLUMNS = (
+
+    MODEL_DIR /
+
+    "feature_columns.pkl"
+
+)
+
+__all__ = [
+
+    "MODEL_DIR",
+
+    "SCALER",
+
+    "ENCODER",
+
+    "IMPUTER",
+
+    "FEATURE_COLUMNS"
+
+]
+

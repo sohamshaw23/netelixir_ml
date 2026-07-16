@@ -1,9 +1,29 @@
 """
-models/creative_performance/__init__.py
-Artefact sub-package for the Creative Performance module.
+Creative Performance Models
+===========================
 
-Files
------
-catboost.cbm — Trained CatBoost model in native binary format (.cbm).
-               Load with: CatBoostRegressor().load_model("catboost.cbm")
+Contains
+
+• CatBoost Model
 """
+
+from pathlib import Path
+
+MODEL_DIR = Path(__file__).resolve().parent
+
+CATBOOST_MODEL = (
+
+    MODEL_DIR /
+
+    "catboost.cbm"
+
+)
+
+__all__ = [
+
+    "MODEL_DIR",
+
+    "CATBOOST_MODEL"
+
+]
+

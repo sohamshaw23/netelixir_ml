@@ -1,149 +1,252 @@
 """
-scripts/clean_data.py - Data Cleaning Pipeline
-===============================================
-Marketing Intelligence AI Platform
+clean_data.py
 
-Loads all raw CSV sources, merges them into a single DataFrame, applies
-cleaning transformations, and saves the results to data/processed/.
+Data Cleaning Pipeline
+
+Functions
+---------
+1. Remove duplicates
+2. Handle missing values
+3. Remove outliers
+4. Standardize column names
+5. Save cleaned dataset
 
 Usage
 -----
-    python scripts/clean_data.py
-    python scripts/clean_data.py --output data/processed/cleaned_dataset.csv
-    python scripts/clean_data.py --drop-duplicates --fill-nulls
-
-Steps
------
-    1. Load raw CSV files (Google Ads, Meta Ads, Microsoft Ads, GA4, Shopify,
-       Campaign Metadata).
-    2. Standardise column names and data types.
-    3. Merge into a single DataFrame → data/processed/merged_dataset.csv
-    4. Drop duplicates.
-    5. Handle missing values (impute / drop based on strategy).
-    6. Fix data type anomalies (negative spend, impossible dates, etc.).
-    7. Save cleaned dataset → data/processed/cleaned_dataset.csv
-
-TODO:
-    - Implement each step once real data is available.
-    - Add configurable null-handling strategies per column.
-    - Add schema validation (Great Expectations or Pandera).
+python scripts/clean_data.py
 """
 
-import argparse
-import logging
-import sys
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from shared.logger import setup_logger
-
-setup_logger()
-logger = logging.getLogger(__name__)
+import numpy as np
+import pandas as pd
 
 
-# ---------------------------------------------------------------------------
-# Pipeline steps
-# ---------------------------------------------------------------------------
+##############################################################
 
-def load_raw_sources() -> "pd.DataFrame":  # type: ignore[name-defined]
-    """
-    Load all raw CSV sources and return a combined DataFrame.
-    TODO: Implement using shared.data_loader.DataLoader.
-    """
-    import pandas as pd
-    from shared.data_loader import DataLoader
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-    logger.info("Loading raw data sources …")
+RAW_DATA = BASE_DIR / "data" / "raw" / "marketing_data.csv"
 
-    # TODO: Uncomment and implement once real data files exist.
-    # google_ads   = DataLoader.load_google_ads()
-    # meta_ads     = DataLoader.load_meta_ads()
-    # microsoft    = DataLoader.load_microsoft_ads()
-    # ga4          = DataLoader.load_ga4()
-    # shopify      = DataLoader.load_shopify()
-    # metadata     = DataLoader.load_campaign_metadata()
+PROCESSED_DIR = BASE_DIR / "data" / "processed"
 
-    logger.info("Raw source loading complete (placeholder). TODO: Implement.")
-    return pd.DataFrame()
+OUTPUT_FILE = PROCESSED_DIR / "cleaned_dataset.csv"
+
+PROCESSED_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+##############################################################
 
 
-def merge_sources(df: "pd.DataFrame") -> "pd.DataFrame":  # type: ignore[name-defined]
-    """
-    Merge all raw sources into a single DataFrame.
-    TODO: Implement join logic on campaign_id / date keys.
-    """
-    logger.info("Merging data sources … TODO: Implement.")
-    return df
+class DataCleaner:
+
+    def __init__(self):
+
+        self.df = None
+
+    ##########################################################
+
+    def load_data(self):
+
+        print("Loading Dataset...")
+
+        self.df = pd.read_csv(RAW_DATA)
+
+        print(f"Rows : {len(self.df)}")
+
+        print(f"Columns : {len(self.df.columns)}")
+
+    ##########################################################
+
+    def standardize_columns(self):
+
+        self.df.columns = (
+
+            self.df.columns
+
+            .str.strip()
+
+            .str.replace(" ", "_")
+
+            .str.replace("-", "_")
+
+        )
+
+    ##########################################################
+
+    def remove_duplicates(self):
+
+        before = len(self.df)
+
+        self.df.drop_duplicates(
+
+            inplace=True
+
+        )
+
+        removed = before - len(self.df)
+
+        print(f"Duplicates Removed : {removed}")
+
+    ##########################################################
+
+    def fill_missing(self):
+
+        numeric = self.df.select_dtypes(
+
+            include=np.number
+
+        ).columns
+
+        categorical = self.df.select_dtypes(
+
+            exclude=np.number
+
+        ).columns
+
+        for col in numeric:
+
+            self.df[col] = self.df[col].fillna(
+
+                self.df[col].median()
+
+            )
+
+        for col in categorical:
+
+            self.df[col] = self.df[col].fillna(
+
+                self.df[col].mode()[0]
+
+            )
+
+    ##########################################################
+
+    def remove_outliers(self):
+
+        numeric = self.df.select_dtypes(
+
+            include=np.number
+
+        ).columns
+
+        for col in numeric:
+
+            q1 = self.df[col].quantile(0.25)
+
+            q3 = self.df[col].quantile(0.75)
+
+            iqr = q3 - q1
+
+            lower = q1 - 1.5 * iqr
+
+            upper = q3 + 1.5 * iqr
+
+            self.df = self.df[
+
+                (self.df[col] >= lower)
+
+                &
+
+                (self.df[col] <= upper)
+
+            ]
+
+    ##########################################################
+
+    def convert_types(self):
+
+        numeric = [
+
+            "Spend",
+
+            "Revenue",
+
+            "Clicks",
+
+            "Impressions",
+
+            "CTR",
+
+            "CPC",
+
+            "Conversions",
+
+            "ROAS"
+
+        ]
+
+        for col in numeric:
+
+            if col in self.df.columns:
+
+                self.df[col] = pd.to_numeric(
+
+                    self.df[col],
+
+                    errors="coerce"
+
+                )
+
+    ##########################################################
+
+    def save(self):
+
+        self.df.to_csv(
+
+            OUTPUT_FILE,
+
+            index=False
+
+        )
+
+        print()
+
+        print("=" * 50)
+
+        print("Cleaning Completed")
+
+        print("=" * 50)
+
+        print(f"Saved : {OUTPUT_FILE}")
+
+        print(f"Rows : {len(self.df)}")
+
+        print("=" * 50)
+
+    ##########################################################
+
+    def run(self):
+
+        self.load_data()
+
+        self.standardize_columns()
+
+        self.remove_duplicates()
+
+        self.convert_types()
+
+        self.fill_missing()
+
+        self.remove_outliers()
+
+        self.save()
 
 
-def clean(df: "pd.DataFrame", drop_duplicates: bool = True, fill_nulls: bool = False) -> "pd.DataFrame":  # type: ignore[name-defined]
-    """
-    Apply cleaning transformations.
-
-    Args:
-        df: Raw or merged DataFrame.
-        drop_duplicates: Whether to drop exact duplicate rows.
-        fill_nulls: Whether to forward-fill missing values.
-
-    TODO: Implement cleaning logic.
-    """
-    logger.info("Cleaning data … TODO: Implement.")
-    # TODO: df = df.drop_duplicates() if drop_duplicates else df
-    # TODO: df = df.fillna(method='ffill') if fill_nulls else df
-    return df
+##############################################################
 
 
-def save(df: "pd.DataFrame", path: str) -> None:  # type: ignore[name-defined]
-    """Save DataFrame to CSV. TODO: Implement."""
-    import os
-    os.makedirs(Path(path).parent, exist_ok=True)
-    # TODO: df.to_csv(path, index=False)
-    logger.info("Saved cleaned dataset to %s (placeholder). TODO: Implement.", path)
+def main():
+
+    cleaner = DataCleaner()
+
+    cleaner.run()
 
 
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        prog="clean_data.py",
-        description="Merge and clean raw marketing data sources.",
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        default="data/processed/cleaned_dataset.csv",
-        metavar="PATH",
-        help="Output path for the cleaned dataset CSV (default: data/processed/cleaned_dataset.csv).",
-    )
-    parser.add_argument(
-        "--drop-duplicates",
-        action="store_true",
-        default=True,
-        help="Drop exact duplicate rows (default: True).",
-    )
-    parser.add_argument(
-        "--fill-nulls",
-        action="store_true",
-        default=False,
-        help="Forward-fill missing values (default: False).",
-    )
-    return parser.parse_args()
-
-
-def main() -> None:
-    args = parse_args()
-    logger.info("=== Data cleaning pipeline started ===")
-
-    df = load_raw_sources()
-    df = merge_sources(df)
-    df = clean(df, drop_duplicates=args.drop_duplicates, fill_nulls=args.fill_nulls)
-    save(df, args.output)
-
-    logger.info("=== Data cleaning complete. Output: %s ===", args.output)
-
+##############################################################
 
 if __name__ == "__main__":
+
     main()
+

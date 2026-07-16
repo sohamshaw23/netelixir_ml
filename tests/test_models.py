@@ -1,95 +1,270 @@
 """
-tests/test_models.py - ML Model Unit Tests
-==========================================
-Marketing Intelligence AI Platform
+test_models.py
 
-Unit tests for model class instantiation and placeholder methods.
+Tests all trained ML models.
+
+Run:
+pytest tests/test_models.py
 """
 
-import numpy as np
+from pathlib import Path
+
+import joblib
+import pandas as pd
 import pytest
 
-from revenue_drop_risk.model import EnsembleRevenueModel, LightGBMRevenueModel, XGBoostRevenueModel
-from anomaly_detection.model import IsolationForestModel
-from customer_segmentation.model import KMeansSegmentationModel
-from creative_performance.model import CatBoostCreativeModel
+from revenue_drop_risk.predict import RevenueRiskPredictor
+from anomaly_detection.detect import AnomalyDetector
+from customer_segmentation.predict import CustomerSegmentPredictor
+from creative_performance.predict import CreativePerformancePredictor
 
 
-# ---------------------------------------------------------------------------
-# Revenue models
-# ---------------------------------------------------------------------------
+###############################################################
+# Revenue Drop Risk
+###############################################################
+
+def test_revenue_model_exists():
+
+    path = Path(
+        "revenue_drop_risk/models/xgboost.pkl"
+    )
+
+    assert path.exists()
 
 
-def test_xgboost_revenue_model_instantiates():
-    model = XGBoostRevenueModel(params={"n_estimators": 10})
+def test_revenue_predict(sample_dataframe):
+
+    predictor = RevenueRiskPredictor()
+
+    result = predictor.predict(sample_dataframe.copy())
+
+    assert len(result) == len(sample_dataframe)
+
+    assert "Revenue_Drop_Risk" in result.columns
+
+    assert "Risk_Probability" in result.columns
+
+
+###############################################################
+# Isolation Forest
+###############################################################
+
+def test_anomaly_model_exists():
+
+    path = Path(
+        "anomaly_detection/models/isolation_forest.pkl"
+    )
+
+    assert path.exists()
+
+
+def test_anomaly_prediction(sample_dataframe):
+
+    detector = AnomalyDetector()
+
+    result = detector.detect(sample_dataframe.copy())
+
+    assert len(result) == len(sample_dataframe)
+
+    assert "Anomaly" in result.columns
+
+    assert "Severity" in result.columns
+
+    assert "Anomaly_Score" in result.columns
+
+
+###############################################################
+# Customer Segmentation
+###############################################################
+
+def test_segmentation_model_exists():
+
+    path = Path(
+        "customer_segmentation/models/kmeans.pkl"
+    )
+
+    assert path.exists()
+
+
+def test_segmentation_prediction(sample_dataframe):
+
+    predictor = CustomerSegmentPredictor()
+
+    result = predictor.predict(sample_dataframe.copy())
+
+    assert len(result) == len(sample_dataframe)
+
+    assert "Cluster" in result.columns
+
+    assert "Business_Label" in result.columns
+
+
+###############################################################
+# Creative Performance
+###############################################################
+
+def test_creative_model_exists():
+
+    path = Path(
+        "creative_performance/models/catboost.cbm"
+    )
+
+    assert path.exists()
+
+
+def test_creative_prediction(sample_dataframe):
+
+    predictor = CreativePerformancePredictor()
+
+    result = predictor.predict(sample_dataframe.copy())
+
+    assert len(result) == len(sample_dataframe)
+
+    assert "Performance_Score" in result.columns
+
+    assert "Recommendation" in result.columns
+
+    assert "Rank" in result.columns
+
+
+###############################################################
+# Generic Model Loading
+###############################################################
+
+@pytest.mark.parametrize(
+
+    "model_path",
+
+    [
+
+        "revenue_drop_risk/models/xgboost.pkl",
+
+        "anomaly_detection/models/isolation_forest.pkl",
+
+        "customer_segmentation/models/kmeans.pkl",
+
+    ]
+
+)
+
+def test_joblib_models(model_path):
+
+    model = joblib.load(model_path)
+
     assert model is not None
 
 
-def test_xgboost_predict_returns_array():
-    model = XGBoostRevenueModel()
-    X = np.random.rand(5, 10)
-    result = model.predict(X)
-    assert isinstance(result, np.ndarray)
+###############################################################
+# Feature Columns
+###############################################################
+
+@pytest.mark.parametrize(
+
+    "path",
+
+    [
+
+        "revenue_drop_risk/models/feature_columns.pkl",
+
+        "anomaly_detection/models/feature_columns.pkl",
+
+        "customer_segmentation/models/feature_columns.pkl",
+
+        "creative_performance/models/feature_columns.pkl",
+
+    ]
+
+)
+
+def test_feature_columns(path):
+
+    columns = joblib.load(path)
+
+    assert isinstance(columns, list)
+
+    assert len(columns) > 0
 
 
-def test_lightgbm_revenue_model_instantiates():
-    model = LightGBMRevenueModel()
-    assert model is not None
+###############################################################
+# Prediction Row Count
+###############################################################
+
+def test_prediction_row_count(sample_dataframe):
+
+    revenue = RevenueRiskPredictor().predict(
+        sample_dataframe.copy()
+    )
+
+    anomaly = AnomalyDetector().detect(
+        sample_dataframe.copy()
+    )
+
+    segment = CustomerSegmentPredictor().predict(
+        sample_dataframe.copy()
+    )
+
+    creative = CreativePerformancePredictor().predict(
+        sample_dataframe.copy()
+    )
+
+    assert len(revenue) == len(sample_dataframe)
+
+    assert len(anomaly) == len(sample_dataframe)
+
+    assert len(segment) == len(sample_dataframe)
+
+    assert len(creative) == len(sample_dataframe)
 
 
-def test_ensemble_model_instantiates():
-    model = EnsembleRevenueModel()
-    assert model.xgb_model is not None
-    assert model.lgbm_model is not None
+###############################################################
+# Probability Range
+###############################################################
+
+def test_probability_range(sample_dataframe):
+
+    revenue = RevenueRiskPredictor().predict(
+        sample_dataframe.copy()
+    )
+
+    creative = CreativePerformancePredictor().predict(
+        sample_dataframe.copy()
+    )
+
+    assert revenue["Risk_Probability"].between(
+        0,
+        1
+    ).all()
+
+    assert creative["Probability"].between(
+        0,
+        1
+    ).all()
 
 
-# ---------------------------------------------------------------------------
-# Anomaly detection model
-# ---------------------------------------------------------------------------
+###############################################################
+# Cluster Values
+###############################################################
+
+def test_cluster_values(sample_dataframe):
+
+    prediction = CustomerSegmentPredictor().predict(
+        sample_dataframe.copy()
+    )
+
+    assert prediction["Cluster"].dtype.kind in "iu"
 
 
-def test_isolation_forest_instantiates():
-    model = IsolationForestModel()
-    assert model is not None
+###############################################################
+# Anomaly Labels
+###############################################################
 
+def test_anomaly_labels(sample_dataframe):
 
-def test_isolation_forest_predict_returns_array():
-    model = IsolationForestModel()
-    X = np.random.rand(10, 5)
-    result = model.predict(X)
-    assert isinstance(result, np.ndarray)
-    assert len(result) == 10
+    prediction = AnomalyDetector().detect(
+        sample_dataframe.copy()
+    )
 
+    assert prediction["Anomaly"].isin(
+        [-1, 1]
+    ).all()
 
-# ---------------------------------------------------------------------------
-# Segmentation model
-# ---------------------------------------------------------------------------
-
-
-def test_kmeans_instantiates():
-    model = KMeansSegmentationModel(n_clusters=3)
-    assert model.n_clusters == 3
-
-
-def test_kmeans_predict_returns_zeros_placeholder():
-    model = KMeansSegmentationModel()
-    X = np.random.rand(8, 4)
-    labels = model.predict(X)
-    assert len(labels) == 8
-
-
-# ---------------------------------------------------------------------------
-# Creative performance model
-# ---------------------------------------------------------------------------
-
-
-def test_catboost_model_instantiates():
-    model = CatBoostCreativeModel()
-    assert model is not None
-
-
-def test_catboost_predict_returns_zeros():
-    model = CatBoostCreativeModel()
-    X = np.random.rand(6, 8)
-    scores = model.predict(X)
-    assert len(scores) == 6

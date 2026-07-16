@@ -1,165 +1,416 @@
 """
-shared/data_loader.py - Data Loading Utilities
-===============================================
-Marketing Intelligence AI Platform
+shared/data_loader.py
 
-Provides functions to load raw, processed, and feature data from the
-data/ directory into pandas DataFrames.
+Universal Data Loader
+
+Supports:
+- CSV
+- Excel (.xlsx/.xls)
+- Automatic file detection
+- Dataset validation
+- Train/Test Split
+- Dataset summary
 """
 
-import logging
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 
-from shared.constants import (
-    CLEANED_DATASET,
-    FEATURE_STORE,
-    MERGED_DATASET,
-    RAW_CAMPAIGN_METADATA,
-    RAW_GA4,
-    RAW_GOOGLE_ADS,
-    RAW_META_ADS,
-    RAW_MICROSOFT_ADS,
-    RAW_SHOPIFY,
-    TEST_DATA,
-    TRAIN_DATA,
-    VALIDATION_DATA,
-)
+from sklearn.model_selection import train_test_split
 
-logger = logging.getLogger(__name__)
+from shared.constants import (
+
+    RANDOM_STATE,
+
+    TEST_SIZE
+
+)
 
 
 class DataLoader:
-    """
-    Centralised data loader for all CSV datasets.
 
-    TODO:
-        - Add support for loading from cloud storage (S3, GCS).
-        - Add caching layer (e.g., Redis or in-memory LRU cache).
-        - Add schema validation after loading each source.
-    """
+    def __init__(self):
 
-    # ------------------------------------------------------------------
-    # Raw data loaders
-    # ------------------------------------------------------------------
+        self.data = None
 
-    @staticmethod
-    def load_google_ads(path: str = RAW_GOOGLE_ADS) -> pd.DataFrame:
-        """Load Google Ads raw data. TODO: Add dtype enforcement."""
-        logger.info("Loading Google Ads data from %s", path)
-        # TODO: Implement loading logic.
-        return pd.DataFrame()
+    ##########################################################
 
-    @staticmethod
-    def load_meta_ads(path: str = RAW_META_ADS) -> pd.DataFrame:
-        """Load Meta Ads raw data. TODO: Add dtype enforcement."""
-        logger.info("Loading Meta Ads data from %s", path)
-        # TODO: Implement loading logic.
-        return pd.DataFrame()
+    def load(self, filepath):
 
-    @staticmethod
-    def load_microsoft_ads(path: str = RAW_MICROSOFT_ADS) -> pd.DataFrame:
-        """Load Microsoft Ads raw data. TODO: Add dtype enforcement."""
-        logger.info("Loading Microsoft Ads data from %s", path)
-        # TODO: Implement loading logic.
-        return pd.DataFrame()
+        filepath = Path(filepath)
 
-    @staticmethod
-    def load_ga4(path: str = RAW_GA4) -> pd.DataFrame:
-        """Load GA4 raw data. TODO: Add dtype enforcement."""
-        logger.info("Loading GA4 data from %s", path)
-        # TODO: Implement loading logic.
-        return pd.DataFrame()
+        if not filepath.exists():
 
-    @staticmethod
-    def load_shopify(path: str = RAW_SHOPIFY) -> pd.DataFrame:
-        """Load Shopify orders raw data. TODO: Add dtype enforcement."""
-        logger.info("Loading Shopify orders data from %s", path)
-        # TODO: Implement loading logic.
-        return pd.DataFrame()
+            raise FileNotFoundError(
 
-    @staticmethod
-    def load_campaign_metadata(path: str = RAW_CAMPAIGN_METADATA) -> pd.DataFrame:
-        """Load campaign metadata. TODO: Add dtype enforcement."""
-        logger.info("Loading campaign metadata from %s", path)
-        # TODO: Implement loading logic.
-        return pd.DataFrame()
+                f"{filepath} not found."
 
-    # ------------------------------------------------------------------
-    # Processed data loaders
-    # ------------------------------------------------------------------
+            )
 
-    @staticmethod
-    def load_merged(path: str = MERGED_DATASET) -> pd.DataFrame:
-        """Load the merged (but unclean) dataset."""
-        logger.info("Loading merged dataset from %s", path)
-        # TODO: Implement loading logic.
-        return pd.DataFrame()
+        extension = filepath.suffix.lower()
 
-    @staticmethod
-    def load_cleaned(path: str = CLEANED_DATASET) -> pd.DataFrame:
-        """Load the cleaned dataset."""
-        logger.info("Loading cleaned dataset from %s", path)
-        # TODO: Implement loading logic.
-        return pd.DataFrame()
+        if extension == ".csv":
 
-    @staticmethod
-    def load_train(path: str = TRAIN_DATA) -> pd.DataFrame:
-        """Load the training split."""
-        logger.info("Loading training data from %s", path)
-        # TODO: Implement loading logic.
-        return pd.DataFrame()
+            self.data = pd.read_csv(filepath)
 
-    @staticmethod
-    def load_validation(path: str = VALIDATION_DATA) -> pd.DataFrame:
-        """Load the validation split."""
-        logger.info("Loading validation data from %s", path)
-        # TODO: Implement loading logic.
-        return pd.DataFrame()
+        elif extension in [".xlsx", ".xls"]:
 
-    @staticmethod
-    def load_test(path: str = TEST_DATA) -> pd.DataFrame:
-        """Load the test split."""
-        logger.info("Loading test data from %s", path)
-        # TODO: Implement loading logic.
-        return pd.DataFrame()
+            self.data = pd.read_excel(filepath)
 
-    # ------------------------------------------------------------------
-    # Feature data loaders
-    # ------------------------------------------------------------------
+        else:
 
-    @staticmethod
-    def load_feature_store(path: str = FEATURE_STORE) -> pd.DataFrame:
-        """Load the feature store CSV."""
-        logger.info("Loading feature store from %s", path)
-        # TODO: Implement loading logic.
-        return pd.DataFrame()
+            raise ValueError(
 
-    # ------------------------------------------------------------------
-    # Generic loader
-    # ------------------------------------------------------------------
+                "Unsupported file type."
 
-    @staticmethod
-    def load_csv(path: str, **kwargs) -> pd.DataFrame:
-        """
-        Generic CSV loader with error handling.
+            )
 
-        Args:
-            path: Absolute or relative path to CSV file.
-            **kwargs: Additional kwargs forwarded to :func:`pandas.read_csv`.
+        return self.data
 
-        Returns:
-            pd.DataFrame: Loaded data.
+    ##########################################################
 
-        Raises:
-            FileNotFoundError: If the file does not exist.
-        """
-        file = Path(path)
-        if not file.exists():
-            logger.error("File not found: %s", path)
-            raise FileNotFoundError(f"Data file not found: {path}")
-        df = pd.read_csv(file, **kwargs)
-        logger.info("Loaded %d rows × %d columns from %s", *df.shape, path)
-        return df
+    def save(
+
+        self,
+
+        dataframe,
+
+        filepath
+
+    ):
+
+        filepath = Path(filepath)
+
+        filepath.parent.mkdir(
+
+            parents=True,
+
+            exist_ok=True
+
+        )
+
+        extension = filepath.suffix.lower()
+
+        if extension == ".csv":
+
+            dataframe.to_csv(
+
+                filepath,
+
+                index=False
+
+            )
+
+        elif extension in [
+
+            ".xlsx",
+
+            ".xls"
+
+        ]:
+
+            dataframe.to_excel(
+
+                filepath,
+
+                index=False
+
+            )
+
+        else:
+
+            raise ValueError(
+
+                "Unsupported file type."
+
+            )
+
+    ##########################################################
+
+    def summary(
+
+        self,
+
+        dataframe=None
+
+    ):
+
+        if dataframe is None:
+
+            dataframe = self.data
+
+        return {
+
+            "rows":
+
+                len(dataframe),
+
+            "columns":
+
+                len(dataframe.columns),
+
+            "missing":
+
+                int(
+
+                    dataframe
+
+                    .isnull()
+
+                    .sum()
+
+                    .sum()
+
+                ),
+
+            "duplicates":
+
+                int(
+
+                    dataframe
+
+                    .duplicated()
+
+                    .sum()
+
+                ),
+
+            "memory_mb":
+
+                round(
+
+                    dataframe.memory_usage(
+
+                        deep=True
+
+                    ).sum()
+
+                    / 1024**2,
+
+                    2
+
+                )
+
+        }
+
+    ##########################################################
+
+    def validate(
+
+        self,
+
+        dataframe,
+
+        required_columns=None
+
+    ):
+
+        if dataframe.empty:
+
+            raise ValueError(
+
+                "Dataset is empty."
+
+            )
+
+        if required_columns:
+
+            missing = [
+
+                col
+
+                for col in required_columns
+
+                if col not in dataframe.columns
+
+            ]
+
+            if missing:
+
+                raise ValueError(
+
+                    f"Missing columns: {missing}"
+
+                )
+
+        return True
+
+    ##########################################################
+
+    def train_test(
+
+        self,
+
+        dataframe,
+
+        target
+
+    ):
+
+        X = dataframe.drop(
+
+            columns=[target]
+
+        )
+
+        y = dataframe[target]
+
+        return train_test_split(
+
+            X,
+
+            y,
+
+            test_size=TEST_SIZE,
+
+            random_state=RANDOM_STATE,
+
+            stratify=y
+
+        )
+
+    ##########################################################
+
+    def numeric_columns(
+
+        self,
+
+        dataframe
+
+    ):
+
+        return list(
+
+            dataframe.select_dtypes(
+
+                include="number"
+
+            ).columns
+
+        )
+
+    ##########################################################
+
+    def categorical_columns(
+
+        self,
+
+        dataframe
+
+    ):
+
+        return list(
+
+            dataframe.select_dtypes(
+
+                exclude="number"
+
+            ).columns
+
+        )
+
+    ##########################################################
+
+    def info(
+
+        self,
+
+        dataframe=None
+
+    ):
+
+        if dataframe is None:
+
+            dataframe = self.data
+
+        print()
+
+        print("=" * 60)
+
+        print("DATASET INFORMATION")
+
+        print("=" * 60)
+
+        print(
+
+            f"Rows : {len(dataframe)}"
+
+        )
+
+        print(
+
+            f"Columns : {len(dataframe.columns)}"
+
+        )
+
+        print(
+
+            f"Missing : {dataframe.isnull().sum().sum()}"
+
+        )
+
+        print(
+
+            f"Duplicates : {dataframe.duplicated().sum()}"
+
+        )
+
+        print("=" * 60)
+
+
+##############################################################
+
+_loader = DataLoader()
+
+
+def load_dataframe(filepath):
+
+    return _loader.load(filepath)
+
+
+def save_dataframe(
+
+    dataframe,
+
+    filepath
+
+):
+
+    _loader.save(
+
+        dataframe,
+
+        filepath
+
+    )
+
+
+def dataset_summary(
+
+    dataframe
+
+):
+
+    return _loader.summary(
+
+        dataframe
+
+    )
+
+
+def split_dataset(
+
+    dataframe,
+
+    target
+
+):
+
+    return _loader.train_test(
+
+        dataframe,
+
+        target
+
+    )
+

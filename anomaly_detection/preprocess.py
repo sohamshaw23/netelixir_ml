@@ -1,54 +1,70 @@
-"""
-anomaly_detection/preprocess.py - Anomaly Detection Preprocessing
-==================================================================
-Marketing Intelligence AI Platform
-"""
-
-import logging
-from typing import List
-
-import numpy as np
+import joblib
 import pandas as pd
 
-from anomaly_detection.config import ANOMALY_FEATURE_COLUMNS
-from shared.preprocess import SharedPreprocessor
+from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
 
-logger = logging.getLogger(__name__)
+from .config import MODEL_DIR
 
 
-class AnomalyPreprocessor:
-    """
-    Preprocessing pipeline for the Anomaly Detection module.
+def preprocess(df):
 
-    TODO:
-        - Implement select_features() to extract anomaly detection features.
-        - Implement scale() using StandardScaler.
-        - Add time-window aggregation features.
-    """
+    df = df.copy()
 
-    def __init__(self) -> None:
-        self.shared_preprocessor = SharedPreprocessor()
-        self.feature_columns: List[str] = ANOMALY_FEATURE_COLUMNS
-        logger.info("AnomalyPreprocessor initialised.")
+    import numpy as np
+    df = df.fillna(value=np.nan)
 
-    def select_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Select features relevant for anomaly detection. TODO: Implement."""
-        # TODO: Return df[self.feature_columns]
-        logger.info("Selecting anomaly features. TODO: Implement.")
-        return df
+    numerical = df.select_dtypes(
+        include=["int64", "float64"]
+    ).columns
 
-    def scale(self, df: pd.DataFrame, fit: bool = True) -> np.ndarray:
-        """Scale features. TODO: Implement using SharedPreprocessor."""
-        # TODO: Implement scaling.
-        logger.info("Scaling anomaly features. TODO: Implement.")
-        return df.values
+    categorical = df.select_dtypes(
+        include=["object"]
+    ).columns
 
-    def fit_transform(self, df: pd.DataFrame) -> np.ndarray:
-        """Full preprocessing on training data. TODO: Implement."""
-        df = self.select_features(df)
-        return self.scale(df, fit=True)
+    num_imp = SimpleImputer(strategy="median")
 
-    def transform(self, df: pd.DataFrame) -> np.ndarray:
-        """Apply fitted preprocessing on new data. TODO: Implement."""
-        df = self.select_features(df)
-        return self.scale(df, fit=False)
+    cat_imp = SimpleImputer(strategy="most_frequent")
+
+    df[numerical] = num_imp.fit_transform(
+        df[numerical]
+    )
+
+    df[categorical] = cat_imp.fit_transform(
+        df[categorical]
+    )
+
+    encoders = {}
+
+    for col in categorical:
+
+        le = LabelEncoder()
+
+        df[col] = le.fit_transform(df[col])
+
+        encoders[col] = le
+
+    scaler = StandardScaler()
+
+    df[numerical] = scaler.fit_transform(
+        df[numerical]
+    )
+
+    MODEL_DIR.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    joblib.dump(
+        scaler,
+        MODEL_DIR / "scaler.pkl"
+    )
+
+    joblib.dump(
+        encoders,
+        MODEL_DIR / "encoders.pkl"
+    )
+
+    return df
+

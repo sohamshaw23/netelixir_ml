@@ -1,12 +1,36 @@
 """
-models/__init__.py - Models Package
-=====================================
-Marketing Intelligence AI Platform
+models
+======
 
-Makes the models/ directory an importable Python package and exposes
-the central ModelRegistry for easy access to all trained artefacts.
+Central Model Package
+
+Provides access to all trained models and preprocessing
+artifacts through a single registry.
+
+Author : Team AIgnition
+Version : 1.0.0
 """
 
-from models.model_registry import ModelRegistry
+############################################################
+# Registry
+############################################################
 
-__all__ = ["ModelRegistry"]
+from .model_registry import (
+    ModelRegistry,
+    registry
+)
+
+############################################################
+
+__version__ = "1.0.0"
+
+############################################################
+
+__all__ = [
+
+    "ModelRegistry",
+
+    "registry"
+
+]
+

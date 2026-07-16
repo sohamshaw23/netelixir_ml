@@ -1,8 +1,29 @@
 """
-models/customer_segmentation/__init__.py
-Artefact sub-package for the Customer Segmentation module.
+Customer Segmentation Models
+============================
 
-Files
------
-kmeans.pkl — Trained K-Means clustering model (joblib).
+Contains
+
+• KMeans Model
 """
+
+from pathlib import Path
+
+MODEL_DIR = Path(__file__).resolve().parent
+
+KMEANS_MODEL = (
+
+    MODEL_DIR /
+
+    "kmeans.pkl"
+
+)
+
+__all__ = [
+
+    "MODEL_DIR",
+
+    "KMEANS_MODEL"
+
+]
+

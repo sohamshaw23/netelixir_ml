@@ -1,55 +1,169 @@
 """
-creative_performance/inference.py - Creative Performance Inference Engine
-=========================================================================
-Marketing Intelligence AI Platform
+inference.py
+------------
+
+Creative Performance Inference Pipeline
+
+Generates dashboard-ready JSON
 """
 
-import logging
-from typing import Any, Dict, List
+import pandas as pd
 
-import numpy as np
-
-from creative_performance.config import CATBOOST_MODEL_PATH, TOP_N_CREATIVES
-from creative_performance.preprocess import CreativePreprocessor
-from shared.helper import load_model
-
-logger = logging.getLogger(__name__)
+from .predict import CreativePerformancePredictor
 
 
-class CreativeInferencer:
+class CreativePerformanceInference:
+
+    def __init__(self):
+
+        self.predictor = CreativePerformancePredictor()
+
+    ##############################################################
+
+    def analyze(self, dataframe):
+
+        result = self.predictor.predict(dataframe)
+
+        response = {
+
+            "summary": self.summary(result),
+
+            "recommendations": self.recommendation_summary(result),
+
+            "top_creatives": self.top_creatives(result),
+
+            "results": result.to_dict(
+                orient="records"
+            )
+
+        }
+
+        return response
+
+    ##############################################################
+
+    def summary(self, dataframe):
+
+        return {
+
+            "total_creatives": len(dataframe),
+
+            "average_score":
+
+                float(
+
+                    dataframe["Performance_Score"]
+
+                    .mean()
+
+                ),
+
+            "highest_score":
+
+                float(
+
+                    dataframe["Performance_Score"]
+
+                    .max()
+
+                ),
+
+            "lowest_score":
+
+                float(
+
+                    dataframe["Performance_Score"]
+
+                    .min()
+
+                )
+
+        }
+
+    ##############################################################
+
+    def recommendation_summary(
+
+        self,
+
+        dataframe
+
+    ):
+
+        grouped = (
+
+            dataframe
+
+            ["Recommendation"]
+
+            .value_counts()
+
+            .to_dict()
+
+        )
+
+        return grouped
+
+    ##############################################################
+
+    def top_creatives(
+
+        self,
+
+        dataframe
+
+    ):
+
+        top = dataframe.sort_values(
+
+            by="Performance_Score",
+
+            ascending=False
+
+        )
+
+        return top.head(10).to_dict(
+
+            orient="records"
+
+        )
+
+
+##############################################################
+
+
+_inference = None
+
+
+def predict_creative_performance(
+
+    df: pd.DataFrame
+
+):
+
     """
-    Loads the trained CatBoost model and scores ad creatives.
-
-    TODO:
-        - Load CatBoost model from disk.
-        - Implement preprocess() method.
-        - Implement predict() returning ranked creative scores.
+    Flask API Entry Point
     """
 
-    def __init__(self) -> None:
-        self.model = None  # TODO: Load CatBoost model.
-        self.preprocessor = CreativePreprocessor()
-        self._model_loaded: bool = False
-        logger.info("CreativeInferencer initialised. TODO: Load model.")
+    global _inference
 
-    def load_model(self) -> None:
-        """Load CatBoost model from disk. TODO: Implement."""
-        # TODO: from catboost import CatBoostRegressor; self.model = CatBoostRegressor(); self.model.load_model(CATBOOST_MODEL_PATH)
-        self._model_loaded = True
-        logger.info("Creative model loaded. TODO: Implement actual loading.")
+    if _inference is None:
 
-    def predict(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """
-        Score ad creatives and return ranked results.
+        _inference = CreativePerformanceInference()
 
-        Args:
-            records: List of creative record dictionaries.
+    return _inference.analyze(df)
 
-        Returns:
-            List of dicts with keys: creative_id, score, rank.
 
-        TODO: Implement end-to-end scoring pipeline.
-        """
-        # TODO: Implement creative scoring.
-        logger.info("Scoring %d creatives. TODO: Implement.", len(records))
-        return []
+##############################################################
+
+if __name__ == "__main__":
+
+    sample = pd.read_csv(
+
+        "../data/processed/test.csv"
+
+    )
+
+    response = predict_creative_performance(sample)
+
+    print(response["summary"])

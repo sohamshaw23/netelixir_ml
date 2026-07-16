@@ -1,0 +1,9 @@
+{
+    "Total Samples": 200,
+    "Normal Samples": 190,
+    "Anomalies": 10,
+    "Anomaly Percentage": 5.0,
+    "Average Score": 0.07714440050224887,
+    "Minimum Score": -0.06921645014700584,
+    "Maximum Score": 0.1413961957939729
+}

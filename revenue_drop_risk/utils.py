@@ -1,50 +1,25 @@
-"""
-revenue_drop_risk/utils.py - Revenue Risk Utilities
-====================================================
-Marketing Intelligence AI Platform
-"""
-
 import logging
-from typing import List
+import os
 
-import numpy as np
-import pandas as pd
+def get_logger(log_path):
 
-logger = logging.getLogger(__name__)
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
+    logger = logging.getLogger("RevenueRisk")
 
-def compute_revenue_change(df: pd.DataFrame, revenue_col: str, period: int = 7) -> pd.Series:
-    """
-    Compute period-over-period revenue change percentage.
+    logger.setLevel(logging.INFO)
 
-    Args:
-        df: DataFrame with revenue column.
-        revenue_col: Name of the revenue column.
-        period: Look-back period in rows (e.g., 7 for weekly).
+    if not logger.handlers:
 
-    Returns:
-        pd.Series: Percentage change values.
+        handler = logging.FileHandler(log_path)
 
-    TODO: Implement revenue change computation.
-    """
-    # TODO: return df[revenue_col].pct_change(periods=period) * 100
-    logger.debug("Computing revenue change. TODO: Implement.")
-    return pd.Series(dtype=float)
+        formatter = logging.Formatter(
+            "%(asctime)s - %(levelname)s - %(message)s"
+        )
 
+        handler.setFormatter(formatter)
 
-def threshold_to_label(scores: np.ndarray, low: float = 0.3, high: float = 0.7) -> List[str]:
-    """
-    Convert continuous risk scores to categorical labels.
+        logger.addHandler(handler)
 
-    Args:
-        scores: Array of risk probability scores.
-        low: Threshold below which risk is "Low".
-        high: Threshold above which risk is "High".
+    return logger
 
-    Returns:
-        List[str]: Risk labels.
-
-    TODO: Use settings.RISK_LABELS for label lookup.
-    """
-    # TODO: Implement label assignment.
-    return []

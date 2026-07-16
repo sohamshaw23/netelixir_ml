@@ -1,40 +1,46 @@
-"""
-creative_performance/utils.py - Creative Performance Utilities
-==============================================================
-Marketing Intelligence AI Platform
-"""
-
 import logging
-from typing import List
-
-import numpy as np
-import pandas as pd
-
-logger = logging.getLogger(__name__)
+import os
 
 
-def rank_creatives(scores: np.ndarray, creative_ids: List[str]) -> pd.DataFrame:
-    """
-    Rank creatives by their performance scores.
+def get_logger(path):
 
-    Args:
-        scores: Array of performance scores.
-        creative_ids: Corresponding creative ID strings.
+    os.makedirs(
 
-    Returns:
-        pd.DataFrame: Sorted DataFrame with columns [creative_id, score, rank].
+        os.path.dirname(path),
 
-    TODO: Implement ranking logic.
-    """
-    # TODO: Implement ranking.
-    return pd.DataFrame(columns=["creative_id", "score", "rank"])
+        exist_ok=True
 
+    )
 
-def filter_min_impressions(df: pd.DataFrame, impressions_col: str, threshold: int) -> pd.DataFrame:
-    """
-    Remove rows below the minimum impressions threshold.
+    logger = logging.getLogger(
 
-    TODO: Implement.
-    """
-    # TODO: return df[df[impressions_col] >= threshold]
-    return df
+        "CreativePerformance"
+
+    )
+
+    logger.setLevel(logging.INFO)
+
+    if not logger.handlers:
+
+        handler = logging.FileHandler(path)
+
+        formatter = logging.Formatter(
+
+            "%(asctime)s"
+
+            " - "
+
+            "%(levelname)s"
+
+            " - "
+
+            "%(message)s"
+
+        )
+
+        handler.setFormatter(formatter)
+
+        logger.addHandler(handler)
+
+    return logger
+

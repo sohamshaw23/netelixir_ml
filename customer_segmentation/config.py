@@ -1,32 +1,47 @@
-"""
-customer_segmentation/config.py - Customer Segmentation Configuration
-=====================================================================
-Marketing Intelligence AI Platform
-"""
+from pathlib import Path
 
-from shared.constants import KMEANS_MODEL
-from settings import KMEANS_PARAMS
+BASE_DIR = Path(__file__).resolve().parent
 
-KMEANS_MODEL_PATH: str = KMEANS_MODEL
-KMEANS_DEFAULT_PARAMS: dict = KMEANS_PARAMS
+DATA_PATH = (
+    BASE_DIR.parent /
+    "data" /
+    "processed" /
+    "cleaned_dataset.csv"
+)
 
-# Optimal number of clusters (determined via Elbow / Silhouette analysis)
-# TODO: Run cluster analysis to determine the best K.
-N_CLUSTERS: int = 5
+MODEL_DIR = BASE_DIR / "models"
 
-# Features used for clustering
-# TODO: Populate after feature engineering and EDA.
-SEGMENTATION_FEATURE_COLUMNS: list = []
+OUTPUT_DIR = BASE_DIR / "outputs"
 
-# Segment labels (update after analysing cluster profiles)
-# TODO: Replace with meaningful business labels.
-SEGMENT_LABELS: dict = {
-    0: "Segment A",
-    1: "Segment B",
-    2: "Segment C",
-    3: "Segment D",
-    4: "Segment E",
-}
+LOG_DIR = BASE_DIR / "logs"
 
-# PCA components for visualisation
-PCA_COMPONENTS: int = 2
+RANDOM_STATE = 42
+
+MAX_CLUSTERS = 10
+
+FEATURE_COLUMNS = [
+
+    "Spend",
+
+    "Revenue",
+
+    "Clicks",
+
+    "Impressions",
+
+    "CTR",
+
+    "CPC",
+
+    "Conversions",
+
+    "ROAS",
+
+    "CampaignType",
+
+    "Channel",
+
+    "Device"
+
+]
+

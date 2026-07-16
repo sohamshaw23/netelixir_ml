@@ -1,10 +1,33 @@
 """
-models/revenue_drop_risk/__init__.py
-Artefact sub-package for the Revenue Drop Risk module.
+Revenue Drop Risk Models
+========================
 
-Files
------
-xgboost.pkl        — Trained XGBoost classifier (joblib).
-lightgbm.pkl       — Trained LightGBM classifier (joblib).
-shap_explainer.pkl — Fitted SHAP TreeExplainer (joblib).
+Contains
+
+• XGBoost
+• LightGBM
+• SHAP Explainer
 """
+
+from pathlib import Path
+
+MODEL_DIR = Path(__file__).resolve().parent
+
+XGBOOST_MODEL = MODEL_DIR / "xgboost.pkl"
+
+LIGHTGBM_MODEL = MODEL_DIR / "lightgbm.pkl"
+
+SHAP_EXPLAINER = MODEL_DIR / "shap_explainer.pkl"
+
+__all__ = [
+
+    "MODEL_DIR",
+
+    "XGBOOST_MODEL",
+
+    "LIGHTGBM_MODEL",
+
+    "SHAP_EXPLAINER"
+
+]
+

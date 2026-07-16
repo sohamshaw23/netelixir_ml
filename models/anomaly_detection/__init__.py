@@ -1,8 +1,29 @@
 """
-models/anomaly_detection/__init__.py
-Artefact sub-package for the Anomaly Detection module.
+Anomaly Detection Models
+========================
 
-Files
------
-isolation_forest.pkl — Trained Isolation Forest model (joblib).
+Contains
+
+• Isolation Forest
 """
+
+from pathlib import Path
+
+MODEL_DIR = Path(__file__).resolve().parent
+
+ISOLATION_FOREST_MODEL = (
+
+    MODEL_DIR /
+
+    "isolation_forest.pkl"
+
+)
+
+__all__ = [
+
+    "MODEL_DIR",
+
+    "ISOLATION_FOREST_MODEL"
+
+]
+

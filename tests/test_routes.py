@@ -1,51 +1,224 @@
 """
-tests/test_routes.py - Route Integration Tests
-===============================================
-Marketing Intelligence AI Platform
+test_routes.py
 
-Tests that all HTML page routes return the correct status codes and templates.
+Tests Flask routing and blueprint registration.
+
+Run:
+pytest tests/test_routes.py
 """
 
-import pytest
-from app import create_app
-from config import TestingConfig
+from api.routes import register_routes
+from flask import Flask
 
 
-@pytest.fixture
-def client():
-    """Create a test Flask client with testing configuration."""
-    app = create_app(TestingConfig)
-    with app.test_client() as client:
-        yield client
+###############################################################
+# App Fixture
+###############################################################
+
+def create_test_app():
+
+    app = Flask(__name__)
+
+    register_routes(app)
+
+    return app
 
 
-def test_index_returns_200(client):
-    """GET / should render the index page."""
-    response = client.get("/")
-    assert response.status_code == 200
-    assert b"Marketing" in response.data
+###############################################################
+# Blueprint Registration
+###############################################################
+
+def test_blueprints_registered():
+
+    app = create_test_app()
+
+    expected = {
+
+        "health",
+
+        "upload",
+
+        "revenue",
+
+        "anomaly",
+
+        "segmentation",
+
+        "creative"
+
+    }
+
+    registered = set(app.blueprints.keys())
+
+    assert expected.issubset(registered)
 
 
-def test_dashboard_returns_200(client):
-    """GET /dashboard should render the dashboard page."""
-    response = client.get("/dashboard")
-    assert response.status_code == 200
+###############################################################
+# URL Rules
+###############################################################
+
+def test_registered_routes():
+
+    app = create_test_app()
+
+    routes = {
+
+        rule.rule
+
+        for rule in app.url_map.iter_rules()
+
+    }
+
+    assert "/health/" in routes
+
+    assert "/upload/" in routes
+
+    assert "/revenue/predict" in routes
+
+    assert "/anomaly/detect" in routes
+
+    assert "/segment/predict" in routes
+
+    assert "/creative/predict" in routes
 
 
-def test_upload_page_returns_200(client):
-    """GET /upload should render the upload page."""
-    response = client.get("/upload")
-    assert response.status_code == 200
+###############################################################
+# Endpoint Names
+###############################################################
+
+def test_endpoint_names():
+
+    app = create_test_app()
+
+    endpoints = {
+
+        rule.endpoint
+
+        for rule in app.url_map.iter_rules()
+
+    }
+
+    assert "health.health" in endpoints
+
+    assert "upload.upload_file" in endpoints
+
+    assert "revenue.predict" in endpoints
+
+    assert "anomaly.detect" in endpoints
+
+    assert "segmentation.predict" in endpoints
+
+    assert "creative.predict" in endpoints
 
 
-def test_result_page_returns_200(client):
-    """GET /result should render the result page."""
-    response = client.get("/result")
-    assert response.status_code == 200
+###############################################################
+# Duplicate Route Check
+###############################################################
+
+def test_no_duplicate_routes():
+
+    app = create_test_app()
+
+    rules = [
+
+        rule.rule
+
+        for rule in app.url_map.iter_rules()
+
+    ]
+
+    assert len(rules) == len(set(rules))
 
 
-def test_health_returns_200(client):
-    """GET /health/ should return health status JSON."""
-    response = client.get("/health/")
-    assert response.status_code == 200
-    assert response.is_json
+###############################################################
+# Allowed HTTP Methods
+###############################################################
+
+def test_http_methods():
+
+    app = create_test_app()
+
+    methods = {}
+
+    for rule in app.url_map.iter_rules():
+
+        methods[rule.rule] = rule.methods
+
+    assert "GET" in methods["/health/"]
+
+    assert "POST" in methods["/upload/"]
+
+    assert "POST" in methods["/revenue/predict"]
+
+    assert "POST" in methods["/anomaly/detect"]
+
+    assert "POST" in methods["/segment/predict"]
+
+    assert "POST" in methods["/creative/predict"]
+
+
+###############################################################
+# Unknown Route
+###############################################################
+
+def test_unknown_route(client):
+
+    response = client.get(
+
+        "/this_route_does_not_exist"
+
+    )
+
+    assert response.status_code == 404
+
+
+###############################################################
+# Wrong Method
+###############################################################
+
+def test_wrong_method(client):
+
+    response = client.get(
+
+        "/creative/predict"
+
+    )
+
+    assert response.status_code == 405
+
+
+###############################################################
+# OPTIONS Requests
+###############################################################
+
+def test_options_requests(client):
+
+    response = client.options(
+
+        "/revenue/predict"
+
+    )
+
+    assert response.status_code in [
+
+        200,
+
+        204
+
+    ]
+
+
+###############################################################
+# URL Map Exists
+###############################################################
+
+def test_url_map():
+
+    app = create_test_app()
+
+    assert len(
+
+        list(app.url_map.iter_rules())
+
+    ) > 0
+

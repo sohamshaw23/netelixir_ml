@@ -1,126 +1,359 @@
 """
-shared/feature_engineering.py - Feature Engineering Utilities
-=============================================================
-Marketing Intelligence AI Platform
+shared/feature_engineering.py
 
-Generates derived marketing features (CTR, ROAS, CPC, rolling averages, etc.)
-used across all ML modules.
+Universal Feature Engineering Pipeline
+
+Features
+--------
+✓ Revenue Features
+✓ Marketing Features
+✓ Campaign Features
+✓ Log Features
+✓ Ratio Features
+✓ Interaction Features
 """
-
-import logging
-from typing import List
 
 import numpy as np
 import pandas as pd
 
-from shared.constants import (
-    CLICKS_COL,
-    CONVERSIONS_COL,
-    CPC_COL,
-    CTR_COL,
-    DATE_COL,
-    IMPRESSIONS_COL,
-    REVENUE_COL,
-    ROAS_COL,
-    SPEND_COL,
-)
-
-logger = logging.getLogger(__name__)
-
 
 class FeatureEngineer:
-    """
-    Generates marketing-specific derived features.
 
-    TODO:
-        - Add time-series lag features.
-        - Add campaign seasonality features (day-of-week, holiday flags).
-        - Add cross-channel interaction features.
-        - Add rolling-window aggregations (7-day, 14-day, 30-day).
-    """
+    def __init__(self):
 
-    # ------------------------------------------------------------------
-    # Core metric features
-    # ------------------------------------------------------------------
+        pass
 
-    @staticmethod
-    def add_ctr(df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Add Click-Through Rate (CTR = clicks / impressions).
+    ########################################################
 
-        TODO: Handle zero-division and null impressions.
-        """
-        # TODO: Implement CTR calculation.
-        df[CTR_COL] = np.nan
+    def revenue_features(self, df):
+
+        if {"Revenue", "Clicks"}.issubset(df.columns):
+
+            df["Revenue_per_Click"] = (
+
+                df["Revenue"]
+
+                /
+
+                (df["Clicks"] + 1)
+
+            )
+
+        if {"Revenue", "Spend"}.issubset(df.columns):
+
+            df["Revenue_to_Spend"] = (
+
+                df["Revenue"]
+
+                /
+
+                (df["Spend"] + 1)
+
+            )
+
+        if {"Revenue", "Impressions"}.issubset(df.columns):
+
+            df["Revenue_per_Impression"] = (
+
+                df["Revenue"]
+
+                /
+
+                (df["Impressions"] + 1)
+
+            )
+
         return df
 
-    @staticmethod
-    def add_cpc(df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Add Cost-Per-Click (CPC = spend / clicks).
+    ########################################################
 
-        TODO: Handle zero-division and null clicks.
-        """
-        # TODO: Implement CPC calculation.
-        df[CPC_COL] = np.nan
+    def conversion_features(self, df):
+
+        if {"Conversions", "Clicks"}.issubset(df.columns):
+
+            df["Conversion_Rate"] = (
+
+                df["Conversions"]
+
+                /
+
+                (df["Clicks"] + 1)
+
+            )
+
+        if {"Spend", "Conversions"}.issubset(df.columns):
+
+            df["Spend_per_Conversion"] = (
+
+                df["Spend"]
+
+                /
+
+                (df["Conversions"] + 1)
+
+            )
+
         return df
 
-    @staticmethod
-    def add_roas(df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Add Return on Ad Spend (ROAS = revenue / spend).
+    ########################################################
 
-        TODO: Handle zero-division and null spend.
-        """
-        # TODO: Implement ROAS calculation.
-        df[ROAS_COL] = np.nan
+    def ctr_features(self, df):
+
+        if {"CTR", "ROAS"}.issubset(df.columns):
+
+            df["CTR_ROAS"] = (
+
+                df["CTR"]
+
+                *
+
+                df["ROAS"]
+
+            )
+
+        if {"Clicks", "Impressions"}.issubset(df.columns):
+
+            df["Clicks_per_Impression"] = (
+
+                df["Clicks"]
+
+                /
+
+                (df["Impressions"] + 1)
+
+            )
+
+        if {"Spend", "Impressions"}.issubset(df.columns):
+
+            df["Cost_per_Impression"] = (
+
+                df["Spend"]
+
+                /
+
+                (df["Impressions"] + 1)
+
+            )
+
         return df
 
-    # ------------------------------------------------------------------
-    # Time-based features
-    # ------------------------------------------------------------------
+    ########################################################
 
-    @staticmethod
-    def add_date_features(df: pd.DataFrame, date_col: str = DATE_COL) -> pd.DataFrame:
-        """
-        Extract year, month, day, day-of-week, and week-of-year from *date_col*.
+    def logarithmic_features(self, df):
 
-        TODO: Parse date column with correct format.
-        """
-        # TODO: Implement date feature extraction.
-        logger.debug("Adding date features from column '%s'.", date_col)
+        for column in [
+
+            "Revenue",
+
+            "Spend",
+
+            "Clicks",
+
+            "Impressions",
+
+            "Conversions"
+
+        ]:
+
+            if column in df.columns:
+
+                df[f"Log_{column}"] = np.log1p(
+
+                    df[column]
+
+                )
+
         return df
 
-    @staticmethod
-    def add_rolling_features(
-        df: pd.DataFrame,
-        value_col: str = REVENUE_COL,
-        windows: List[int] = [7, 14, 30],
-        group_col: str = None,
-    ) -> pd.DataFrame:
-        """
-        Add rolling mean and std features for *value_col* over *windows*.
+    ########################################################
 
-        TODO: Implement rolling aggregation with optional groupby.
-        """
-        # TODO: Implement rolling feature generation.
-        logger.debug("Adding rolling features for '%s'.", value_col)
+    def binary_features(self, df):
+
+        if "ROAS" in df.columns:
+
+            df["High_ROAS"] = (
+
+                df["ROAS"] > 3
+
+            ).astype(int)
+
+        if "CTR" in df.columns:
+
+            df["High_CTR"] = (
+
+                df["CTR"] >
+
+                df["CTR"].median()
+
+            ).astype(int)
+
+        if "Revenue" in df.columns:
+
+            df["High_Revenue"] = (
+
+                df["Revenue"] >
+
+                df["Revenue"].median()
+
+            ).astype(int)
+
         return df
 
-    # ------------------------------------------------------------------
-    # Full pipeline
-    # ------------------------------------------------------------------
+    ########################################################
 
-    def generate_all(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Run the full feature engineering pipeline.
+    def interaction_features(self, df):
 
-        TODO: Chain all feature methods and return the enriched DataFrame.
-        """
-        logger.info("Running full feature engineering pipeline on DataFrame %s.", df.shape)
-        df = self.add_ctr(df)
-        df = self.add_cpc(df)
-        df = self.add_roas(df)
-        df = self.add_date_features(df)
-        # TODO: Add remaining feature methods here.
+        if {"Spend", "CTR"}.issubset(df.columns):
+
+            df["Spend_x_CTR"] = (
+
+                df["Spend"]
+
+                *
+
+                df["CTR"]
+
+            )
+
+        if {"Revenue", "ROAS"}.issubset(df.columns):
+
+            df["Revenue_x_ROAS"] = (
+
+                df["Revenue"]
+
+                *
+
+                df["ROAS"]
+
+            )
+
+        if {"Clicks", "Conversions"}.issubset(df.columns):
+
+            df["Clicks_x_Conversions"] = (
+
+                df["Clicks"]
+
+                *
+
+                df["Conversions"]
+
+            )
+
         return df
+
+    ########################################################
+
+    def statistical_features(self, df):
+
+        numeric = df.select_dtypes(
+
+            include=np.number
+
+        ).columns
+
+        if len(numeric) > 0:
+
+            df["Row_Mean"] = df[numeric].mean(axis=1)
+
+            df["Row_STD"] = df[numeric].std(axis=1)
+
+            df["Row_Max"] = df[numeric].max(axis=1)
+
+            df["Row_Min"] = df[numeric].min(axis=1)
+
+        return df
+
+    ########################################################
+
+    def date_features(self, df):
+
+        if "Date" in df.columns:
+
+            df["Date"] = pd.to_datetime(
+
+                df["Date"]
+
+            )
+
+            df["Year"] = df["Date"].dt.year
+
+            df["Month"] = df["Date"].dt.month
+
+            df["Day"] = df["Date"].dt.day
+
+            df["Weekday"] = df["Date"].dt.weekday
+
+            df["Quarter"] = df["Date"].dt.quarter
+
+        return df
+
+    ########################################################
+
+    def create_features(self, dataframe):
+
+        dataframe = dataframe.copy()
+
+        dataframe = self.revenue_features(
+
+            dataframe
+
+        )
+
+        dataframe = self.conversion_features(
+
+            dataframe
+
+        )
+
+        dataframe = self.ctr_features(
+
+            dataframe
+
+        )
+
+        dataframe = self.logarithmic_features(
+
+            dataframe
+
+        )
+
+        dataframe = self.binary_features(
+
+            dataframe
+
+        )
+
+        dataframe = self.interaction_features(
+
+            dataframe
+
+        )
+
+        dataframe = self.statistical_features(
+
+            dataframe
+
+        )
+
+        dataframe = self.date_features(
+
+            dataframe
+
+        )
+
+        return dataframe
+
+
+############################################################
+
+_engineer = FeatureEngineer()
+
+
+def create_features(dataframe):
+
+    return _engineer.create_features(
+
+        dataframe
+
+    )
+

@@ -1,110 +1,418 @@
 """
-shared/helper.py - General Helper Utilities
-============================================
-Marketing Intelligence AI Platform
+shared/helper.py
 
-Miscellaneous utility functions (file I/O, JSON helpers, date utilities,
-model serialisation) used across the project.
+Common Utility Functions
+
+Features
+--------
+✓ JSON Read/Write
+✓ Joblib Save/Load
+✓ Directory Creation
+✓ Timestamp
+✓ UUID Generator
+✓ File Size Formatter
+✓ Timer Decorator
+✓ Allowed File Validation
 """
 
 import json
-import logging
-import os
-from datetime import datetime
+import uuid
+import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from functools import wraps
 
 import joblib
-import pandas as pd
 
-logger = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Model serialisation
-# ---------------------------------------------------------------------------
+from shared.constants import ALLOWED_EXTENSIONS
 
 
-def save_model(model: Any, path: str) -> None:
-    """
-    Serialise a model to disk using joblib.
+##############################################################
+# Directory
+##############################################################
 
-    Args:
-        model: Any picklable model object.
-        path: Destination file path (should end in .pkl).
+def ensure_directory(path):
 
-    TODO: Add versioning and metadata alongside the model file.
-    """
-    os.makedirs(Path(path).parent, exist_ok=True)
-    joblib.dump(model, path)
-    logger.info("Model saved to %s", path)
+    path = Path(path)
 
+    path.mkdir(
 
-def load_model(path: str) -> Any:
-    """
-    Load a serialised model from disk.
+        parents=True,
 
-    Args:
-        path: Path to the .pkl file.
+        exist_ok=True
 
-    Returns:
-        Loaded model object.
+    )
 
-    Raises:
-        FileNotFoundError: If the model file does not exist.
-    """
-    if not Path(path).exists():
-        logger.error("Model file not found: %s", path)
-        raise FileNotFoundError(f"Model not found: {path}")
-    model = joblib.load(path)
-    logger.info("Model loaded from %s", path)
-    return model
+    return path
 
 
-# ---------------------------------------------------------------------------
-# DataFrame utilities
-# ---------------------------------------------------------------------------
+##############################################################
+# JSON
+##############################################################
+
+def save_json(
+
+    data,
+
+    filepath
+
+):
+
+    filepath = Path(filepath)
+
+    ensure_directory(
+
+        filepath.parent
+
+    )
+
+    with open(
+
+        filepath,
+
+        "w",
+
+        encoding="utf-8"
+
+    ) as file:
+
+        json.dump(
+
+            data,
+
+            file,
+
+            indent=4
+
+        )
 
 
-def dataframe_to_records(df: pd.DataFrame) -> List[Dict[str, Any]]:
-    """Convert a DataFrame to a list of dicts for JSON serialisation."""
-    return df.to_dict(orient="records")
+def load_json(filepath):
+
+    with open(
+
+        filepath,
+
+        "r",
+
+        encoding="utf-8"
+
+    ) as file:
+
+        return json.load(file)
 
 
-def records_to_dataframe(records: List[Dict[str, Any]]) -> pd.DataFrame:
-    """Convert a list of dicts (e.g., from a JSON payload) to a DataFrame."""
-    return pd.DataFrame(records)
+##############################################################
+# Joblib
+##############################################################
+
+def save_object(
+
+    obj,
+
+    filepath
+
+):
+
+    filepath = Path(filepath)
+
+    ensure_directory(
+
+        filepath.parent
+
+    )
+
+    joblib.dump(
+
+        obj,
+
+        filepath
+
+    )
 
 
-# ---------------------------------------------------------------------------
-# JSON utilities
-# ---------------------------------------------------------------------------
+def load_object(filepath):
+
+    return joblib.load(filepath)
 
 
-def save_json(data: Dict[str, Any], path: str) -> None:
-    """Save a dictionary as a JSON file."""
-    os.makedirs(Path(path).parent, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, default=str)
-    logger.info("JSON saved to %s", path)
+##############################################################
+# UUID
+##############################################################
+
+def generate_uuid():
+
+    return str(
+
+        uuid.uuid4()
+
+    )
 
 
-def load_json(path: str) -> Dict[str, Any]:
-    """Load a JSON file as a dictionary."""
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+##############################################################
+# Timestamp
+##############################################################
+
+def current_timestamp():
+
+    return time.strftime(
+
+        "%Y-%m-%d %H:%M:%S"
+
+    )
 
 
-# ---------------------------------------------------------------------------
-# Date utilities
-# ---------------------------------------------------------------------------
+##############################################################
+# Allowed File
+##############################################################
+
+def allowed_file(filename):
+
+    if "." not in filename:
+
+        return False
+
+    extension = (
+
+        filename
+
+        .rsplit(".", 1)[1]
+
+        .lower()
+
+    )
+
+    return extension in ALLOWED_EXTENSIONS
 
 
-def today_str(fmt: str = "%Y-%m-%d") -> str:
-    """Return today's date as a formatted string."""
-    return datetime.now().strftime(fmt)
+##############################################################
+# File Size
+##############################################################
+
+def readable_size(size):
+
+    units = [
+
+        "B",
+
+        "KB",
+
+        "MB",
+
+        "GB",
+
+        "TB"
+
+    ]
+
+    value = float(size)
+
+    for unit in units:
+
+        if value < 1024:
+
+            return f"{value:.2f} {unit}"
+
+        value /= 1024
+
+    return f"{value:.2f} PB"
 
 
-def timestamp_str(fmt: str = "%Y%m%d_%H%M%S") -> str:
-    """Return current timestamp as a formatted string (useful for filenames)."""
-    return datetime.now().strftime(fmt)
+##############################################################
+# Timer Decorator
+##############################################################
+
+def timer(func):
+
+    @wraps(func)
+
+    def wrapper(
+
+        *args,
+
+        **kwargs
+
+    ):
+
+        start = time.time()
+
+        result = func(
+
+            *args,
+
+            **kwargs
+
+        )
+
+        elapsed = time.time() - start
+
+        print(
+
+            f"{func.__name__}"
+
+            f" completed in "
+
+            f"{elapsed:.2f} sec"
+
+        )
+
+        return result
+
+    return wrapper
+
+
+##############################################################
+# Execution Timer
+##############################################################
+
+class Timer:
+
+    def __init__(self):
+
+        self.start = None
+
+    def __enter__(self):
+
+        self.start = time.time()
+
+        return self
+
+    def __exit__(
+
+        self,
+
+        exc_type,
+
+        exc_value,
+
+        traceback
+
+    ):
+
+        elapsed = (
+
+            time.time()
+
+            -
+
+            self.start
+
+        )
+
+        print(
+
+            f"Execution Time: "
+
+            f"{elapsed:.2f} sec"
+
+        )
+
+
+##############################################################
+# Dictionary Merge
+##############################################################
+
+def merge_dicts(
+
+    *dictionaries
+
+):
+
+    result = {}
+
+    for dictionary in dictionaries:
+
+        result.update(
+
+            dictionary
+
+        )
+
+    return result
+
+
+##############################################################
+# Safe Float
+##############################################################
+
+def safe_float(
+
+    value,
+
+    default=0.0
+
+):
+
+    try:
+
+        return float(value)
+
+    except (
+
+        TypeError,
+
+        ValueError
+
+    ):
+
+        return default
+
+
+##############################################################
+# Safe Integer
+##############################################################
+
+def safe_int(
+
+    value,
+
+    default=0
+
+):
+
+    try:
+
+        return int(value)
+
+    except (
+
+        TypeError,
+
+        ValueError
+
+    ):
+
+        return default
+
+
+##############################################################
+# Percentage
+##############################################################
+
+def percentage(
+
+    numerator,
+
+    denominator
+
+):
+
+    if denominator == 0:
+
+        return 0.0
+
+    return round(
+
+        numerator
+
+        /
+
+        denominator
+
+        *
+
+        100,
+
+        2
+
+    )
+

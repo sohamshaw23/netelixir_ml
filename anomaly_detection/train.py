@@ -1,48 +1,169 @@
 """
-anomaly_detection/train.py - Anomaly Detection Training
-========================================================
-Marketing Intelligence AI Platform
+train.py
+---------
+
+Training script for Isolation Forest
+
+Pipeline
+
+1. Load Dataset
+2. Preprocess
+3. Feature Engineering
+4. Train Isolation Forest
+5. Save Model
+6. Evaluate
+7. Generate Visualizations
 """
 
-import logging
+import joblib
+import pandas as pd
 
-from anomaly_detection.model import IsolationForestModel
-from anomaly_detection.preprocess import AnomalyPreprocessor
-from anomaly_detection.config import ISOLATION_FOREST_MODEL_PATH, ISOLATION_FOREST_DEFAULT_PARAMS
-from shared.data_loader import DataLoader
-from shared.helper import save_model
+from .preprocess import preprocess
+from .feature_engineering import create_features
 
-logger = logging.getLogger(__name__)
+from .model import build_model
+
+from .evaluation import AnomalyEvaluator
+
+from .visualization import AnomalyVisualizer
+
+from .config import (
+
+    DATA_PATH,
+
+    MODEL_DIR,
+
+    FEATURE_COLUMNS
+
+)
 
 
 class AnomalyTrainer:
-    """
-    Orchestrates training of the Isolation Forest anomaly detection model.
 
-    TODO:
-        - Load and preprocess data.
-        - Train Isolation Forest.
-        - Evaluate on labelled anomaly validation set (if available).
-        - Persist model to disk.
-    """
+    def __init__(self):
 
-    def __init__(self) -> None:
-        self.preprocessor = AnomalyPreprocessor()
-        self.model = IsolationForestModel(params=ISOLATION_FOREST_DEFAULT_PARAMS)
-        logger.info("AnomalyTrainer initialised.")
+        self.model = build_model()
 
-    def run(self) -> None:
-        """Execute the anomaly detection training pipeline. TODO: Implement."""
-        logger.info("Starting Anomaly Detection training pipeline. TODO: Implement.")
+    ######################################################
 
-        # TODO: df = DataLoader.load_cleaned()
-        # TODO: X = self.preprocessor.fit_transform(df)
-        # TODO: self.model.fit(X)
-        # TODO: save_model(self.model.model, ISOLATION_FOREST_MODEL_PATH)
+    def load_dataset(self):
 
-        logger.info("Anomaly training complete (placeholder).")
+        print("Loading Dataset...")
 
+        df = pd.read_csv(DATA_PATH)
+
+        print(df.shape)
+
+        return df
+
+    ######################################################
+
+    def prepare(self, dataframe):
+        dataframe = dataframe[FEATURE_COLUMNS]
+        dataframe = create_features(dataframe)
+        dataframe = preprocess(dataframe)
+        return dataframe
+
+    ######################################################
+
+    def train(self):
+
+        df = self.load_dataset()
+
+        processed = self.prepare(df)
+
+        print("Training Isolation Forest...")
+
+        self.model.fit(processed)
+
+        print("Training Completed.")
+
+        MODEL_DIR.mkdir(
+
+            parents=True,
+
+            exist_ok=True
+
+        )
+
+        joblib.dump(
+
+            self.model,
+
+            MODEL_DIR /
+
+            "isolation_forest.pkl"
+
+        )
+
+        joblib.dump(
+
+            list(processed.columns),
+
+            MODEL_DIR /
+
+            "feature_columns.pkl"
+
+        )
+
+        print("Model Saved.")
+
+        labels = self.model.predict(
+
+            processed
+
+        )
+
+        scores = self.model.decision_function(
+
+            processed
+
+        )
+
+        evaluator = AnomalyEvaluator()
+
+        evaluator.evaluate_all(
+
+            processed,
+
+            labels,
+
+            scores
+
+        )
+
+        visualizer = AnomalyVisualizer()
+
+        visualizer.visualize_all(
+
+            processed,
+
+            scores,
+
+            labels
+
+        )
+
+        print(
+
+            "\nAnomaly Detection Pipeline Completed."
+
+        )
+
+
+###########################################################
+
+
+def main():
+
+    trainer = AnomalyTrainer()
+
+    trainer.train()
+
+
+###########################################################
 
 if __name__ == "__main__":
-    trainer = AnomalyTrainer()
-    trainer.run()
+
+    main()
+

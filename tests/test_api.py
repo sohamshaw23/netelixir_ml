@@ -1,114 +1,428 @@
 """
-tests/test_api.py - API Endpoint Tests
-=======================================
-Marketing Intelligence AI Platform
+test_api.py
 
-Integration tests for all API Blueprint endpoints.
+API Integration Tests
+
+Run:
+pytest tests/test_api.py
 """
 
+import io
+import json
 import pytest
-from app import create_app
-from config import TestingConfig
 
 
-@pytest.fixture
-def client():
-    """Create a test Flask client with testing configuration."""
-    app = create_app(TestingConfig)
-    with app.test_client() as client:
-        yield client
+###############################################################
+# Home Endpoint
+###############################################################
+
+def test_home(client):
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert "project" in data or "Project" in data
 
 
-# ---------------------------------------------------------------------------
-# Health check tests
-# ---------------------------------------------------------------------------
+###############################################################
+# Health API
+###############################################################
 
+def test_health(client):
 
-def test_health_check_returns_200(client):
-    """GET /health should return 200 with status ok."""
     response = client.get("/health/")
+
     assert response.status_code == 200
+
     data = response.get_json()
-    assert data["status"] == "ok"
+
+    assert data["status"] == "healthy"
+
+    assert "available_models" in data
 
 
-# ---------------------------------------------------------------------------
-# Upload API tests
-# ---------------------------------------------------------------------------
+###############################################################
+# Upload CSV
+###############################################################
+
+def test_upload_csv(client, upload_csv):
+
+    response = client.post(
+
+        "/upload/",
+
+        data=upload_csv,
+
+        content_type="multipart/form-data"
+
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["success"] is True
+
+    assert "filepath" in data
 
 
-def test_upload_no_file_returns_400(client):
-    """POST /api/upload/ without a file should return 400."""
-    response = client.post("/api/upload/")
+###############################################################
+# Invalid Upload
+###############################################################
+
+def test_invalid_upload(client, invalid_upload):
+
+    response = client.post(
+
+        "/upload/",
+
+        data=invalid_upload,
+
+        content_type="multipart/form-data"
+
+    )
+
     assert response.status_code == 400
 
 
-def test_upload_list_returns_200(client):
-    """GET /api/upload/list should return 200 and a files list."""
-    response = client.get("/api/upload/list")
+###############################################################
+# Revenue API
+###############################################################
+
+def test_revenue_prediction(
+
+    client,
+
+    csv_file
+
+):
+
+    response = client.post(
+
+        "/revenue/predict",
+
+        json={
+
+            "filepath": csv_file
+
+        }
+
+    )
+
     assert response.status_code == 200
+
     data = response.get_json()
-    assert "files" in data
+
+    assert data["success"] is True
 
 
-# ---------------------------------------------------------------------------
-# Revenue API tests
-# ---------------------------------------------------------------------------
+###############################################################
+# Anomaly API
+###############################################################
+
+def test_anomaly_prediction(
+
+    client,
+
+    csv_file
+
+):
+
+    response = client.post(
+
+        "/anomaly/detect",
+
+        json={
+
+            "filepath": csv_file
+
+        }
+
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["success"] is True
 
 
-def test_revenue_predict_empty_body_returns_400(client):
-    """POST /api/revenue/predict without JSON body should return 400."""
-    response = client.post("/api/revenue/predict", content_type="application/json", data="")
+###############################################################
+# Segmentation API
+###############################################################
+
+def test_segmentation_prediction(
+
+    client,
+
+    csv_file
+
+):
+
+    response = client.post(
+
+        "/segment/predict",
+
+        json={
+
+            "filepath": csv_file
+
+        }
+
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["success"] is True
+
+
+###############################################################
+# Creative API
+###############################################################
+
+def test_creative_prediction(
+
+    client,
+
+    csv_file
+
+):
+
+    response = client.post(
+
+        "/creative/predict",
+
+        json={
+
+            "filepath": csv_file
+
+        }
+
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["success"] is True
+
+
+###############################################################
+# Missing filepath
+###############################################################
+
+@pytest.mark.parametrize(
+
+    "endpoint",
+
+    [
+
+        "/revenue/predict",
+
+        "/anomaly/detect",
+
+        "/segment/predict",
+
+        "/creative/predict"
+
+    ]
+
+)
+
+def test_missing_filepath(
+
+    client,
+
+    endpoint
+
+):
+
+    response = client.post(
+
+        endpoint,
+
+        json={}
+
+    )
+
     assert response.status_code == 400
 
 
-def test_revenue_predict_returns_200_with_valid_body(client):
-    """POST /api/revenue/predict with valid body should return 200."""
-    # TODO: Replace with realistic test payload once model is integrated.
+###############################################################
+# Invalid filepath
+###############################################################
+
+@pytest.mark.parametrize(
+
+    "endpoint",
+
+    [
+
+        "/revenue/predict",
+
+        "/anomaly/detect",
+
+        "/segment/predict",
+
+        "/creative/predict"
+
+    ]
+
+)
+
+def test_invalid_filepath(
+
+    client,
+
+    endpoint
+
+):
+
     response = client.post(
-        "/api/revenue/predict",
-        json={"data": [{"campaign_id": "c1", "spend": 100, "revenue": 500}]},
+
+        endpoint,
+
+        json={
+
+            "filepath":
+
+            "abc.csv"
+
+        }
+
     )
-    assert response.status_code == 200
+
+    assert response.status_code in [
+
+        404,
+
+        500
+
+    ]
 
 
-# ---------------------------------------------------------------------------
-# Anomaly API tests
-# ---------------------------------------------------------------------------
+###############################################################
+# Wrong Request Type
+###############################################################
+
+def test_wrong_method(client):
+
+    response = client.get(
+
+        "/revenue/predict"
+
+    )
+
+    assert response.status_code == 405
 
 
-def test_anomaly_detect_returns_200(client):
-    """POST /api/anomaly/detect with valid body should return 200."""
+###############################################################
+# Empty JSON
+###############################################################
+
+def test_empty_json(
+
+    client
+
+):
+
     response = client.post(
-        "/api/anomaly/detect",
-        json={"data": [{"date": "2024-01-01", "clicks": 100, "impressions": 5000}]},
+
+        "/revenue/predict",
+
+        data="",
+
+        content_type="application/json"
+
     )
-    assert response.status_code == 200
+
+    assert response.status_code in [
+
+        400,
+
+        415
+
+    ]
 
 
-# ---------------------------------------------------------------------------
-# Segmentation API tests
-# ---------------------------------------------------------------------------
+###############################################################
+# Invalid Route
+###############################################################
+
+def test_invalid_route(client):
+
+    response = client.get(
+
+        "/abcd"
+
+    )
+
+    assert response.status_code == 404
 
 
-def test_segmentation_segment_returns_200(client):
-    """POST /api/segmentation/segment with valid body should return 200."""
+###############################################################
+# Upload without file
+###############################################################
+
+def test_upload_without_file(
+
+    client
+
+):
+
     response = client.post(
-        "/api/segmentation/segment",
-        json={"data": [{"customer_id": "u1", "revenue": 200, "clicks": 50}]},
+
+        "/upload/",
+
+        data={},
+
+        content_type="multipart/form-data"
+
     )
-    assert response.status_code == 200
+
+    assert response.status_code == 400
 
 
-# ---------------------------------------------------------------------------
-# Creative API tests
-# ---------------------------------------------------------------------------
+###############################################################
+# Upload Empty Filename
+###############################################################
 
+def test_empty_filename(
 
-def test_creative_score_returns_200(client):
-    """POST /api/creative/score with valid body should return 200."""
+    client
+
+):
+
+    data = {
+
+        "file": (
+
+            io.BytesIO(
+
+                b""
+
+            ),
+
+            ""
+
+        )
+
+    }
+
     response = client.post(
-        "/api/creative/score",
-        json={"data": [{"creative_id": "cr1", "impressions": 10000, "clicks": 300}]},
+
+        "/upload/",
+
+        data=data,
+
+        content_type="multipart/form-data"
+
     )
-    assert response.status_code == 200
+
+    assert response.status_code == 400
+

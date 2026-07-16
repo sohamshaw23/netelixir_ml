@@ -1,92 +1,182 @@
 """
-config.py - Application Configuration
-=======================================
-Marketing Intelligence AI Platform
+config.py
 
-Provides configuration classes for development, testing, and production
-environments.  Values are read from environment variables first, falling back
-to sensible defaults.
+Application Configuration
+
+Author : Team AIgnition
+Version : 1.0.0
 """
 
 import os
 from pathlib import Path
 
-# ---------------------------------------------------------------------------
-# Base directory (project root)
-# ---------------------------------------------------------------------------
+
+############################################################
+# Base Paths
+############################################################
+
 BASE_DIR = Path(__file__).resolve().parent
 
+DATA_DIR = BASE_DIR / "data"
+
+RAW_DATA_DIR = DATA_DIR / "raw"
+
+PROCESSED_DATA_DIR = DATA_DIR / "processed"
+
+UPLOAD_DIR = BASE_DIR / "uploads"
+
+REPORT_DIR = BASE_DIR / "reports"
+
+MODEL_DIR = BASE_DIR / "models"
+
+LOG_DIR = BASE_DIR / "logs"
+
+STATIC_DIR = BASE_DIR / "static"
+
+TEMPLATE_DIR = BASE_DIR / "templates"
+
+OUTPUT_DIR = BASE_DIR / "outputs"
+
+
+############################################################
+# Flask
+############################################################
 
 class Config:
-    """Base configuration shared by all environments."""
 
-    # -----------------------------------------------------------------------
-    # Flask core
-    # -----------------------------------------------------------------------
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "change-me-in-production")
-    DEBUG: bool = False
-    TESTING: bool = False
+    SECRET_KEY = os.getenv(
 
-    # -----------------------------------------------------------------------
-    # Server
-    # -----------------------------------------------------------------------
-    HOST: str = os.getenv("HOST", "0.0.0.0")
-    PORT: int = int(os.getenv("PORT", 5000))
+        "SECRET_KEY",
 
-    # -----------------------------------------------------------------------
-    # File uploads
-    # -----------------------------------------------------------------------
-    UPLOAD_FOLDER: str = os.getenv("UPLOAD_FOLDER", str(BASE_DIR / "uploads"))
-    MAX_CONTENT_LENGTH: int = 50 * 1024 * 1024  # 50 MB
+        "marketing-intelligence-secret-key"
 
-    # -----------------------------------------------------------------------
-    # Paths
-    # -----------------------------------------------------------------------
-    DATA_DIR: str = str(BASE_DIR / "data")
-    MODELS_DIR: str = str(BASE_DIR / "models")
-    LOGS_DIR: str = str(BASE_DIR / "logs")
+    )
 
-    # -----------------------------------------------------------------------
-    # Database (placeholder — configure for production)
-    # -----------------------------------------------------------------------
-    # TODO: Replace with actual database URI when integrating a database.
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///marketing_ai.db")
+    DEBUG = False
 
-    # -----------------------------------------------------------------------
-    # ML / Model settings
-    # -----------------------------------------------------------------------
-    MODEL_VERSION: str = os.getenv("MODEL_VERSION", "v1.0")
-    RANDOM_STATE: int = 42
-    TEST_SIZE: float = 0.2
-    VALIDATION_SIZE: float = 0.1
+    TESTING = False
 
-    # -----------------------------------------------------------------------
-    # Logging
-    # -----------------------------------------------------------------------
-    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
-    LOG_FORMAT: str = "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+    JSON_SORT_KEYS = False
 
+    MAX_CONTENT_LENGTH = 50 * 1024 * 1024
+
+    UPLOAD_FOLDER = str(UPLOAD_DIR)
+
+
+############################################################
 
 class DevelopmentConfig(Config):
-    """Development-specific configuration."""
 
-    DEBUG: bool = True
-    LOG_LEVEL: str = "DEBUG"
-    # TODO: Set a development-specific DATABASE_URL if needed.
+    DEBUG = True
 
+
+############################################################
 
 class TestingConfig(Config):
-    """Testing-specific configuration."""
 
-    TESTING: bool = True
-    DEBUG: bool = True
-    # Use in-memory database for tests.
-    DATABASE_URL: str = "sqlite:///:memory:"
+    TESTING = True
 
+    DEBUG = True
+
+
+############################################################
 
 class ProductionConfig(Config):
-    """Production-specific configuration."""
 
-    DEBUG: bool = False
-    # TODO: Ensure SECRET_KEY, DATABASE_URL, and other secrets are provided
-    #       via environment variables in production.
+    DEBUG = False
+
+
+############################################################
+# ML Configuration
+############################################################
+
+RANDOM_STATE = 42
+
+TEST_SIZE = 0.20
+
+VALIDATION_SIZE = 0.10
+
+MAX_CLUSTERS = 10
+
+############################################################
+# Allowed Uploads
+############################################################
+
+ALLOWED_EXTENSIONS = {
+
+    "csv",
+
+    "xlsx",
+
+    "xls"
+
+}
+
+############################################################
+# API
+############################################################
+
+API_VERSION = "v1"
+
+PROJECT_NAME = "Marketing Intelligence Platform"
+
+VERSION = "1.0.0"
+
+AUTHOR = "Team AIgnition"
+
+############################################################
+# Logging
+############################################################
+
+LOG_LEVEL = "INFO"
+
+############################################################
+# Create Directories
+############################################################
+
+for folder in [
+
+    DATA_DIR,
+
+    RAW_DATA_DIR,
+
+    PROCESSED_DATA_DIR,
+
+    UPLOAD_DIR,
+
+    REPORT_DIR,
+
+    MODEL_DIR,
+
+    LOG_DIR,
+
+    STATIC_DIR,
+
+    TEMPLATE_DIR,
+
+    OUTPUT_DIR
+
+]:
+
+    folder.mkdir(
+
+        parents=True,
+
+        exist_ok=True
+
+    )
+
+############################################################
+# Config Mapping
+############################################################
+
+config = {
+
+    "development": DevelopmentConfig,
+
+    "testing": TestingConfig,
+
+    "production": ProductionConfig
+
+}
+

@@ -1,145 +1,323 @@
 """
-scripts/generate_features.py - Feature Engineering Pipeline
-============================================================
-Marketing Intelligence AI Platform
+generate_features.py
 
-Loads the cleaned dataset, runs the full feature engineering pipeline,
-and saves the feature store and preprocessor artefacts.
-
-Usage
------
-    python scripts/generate_features.py
-    python scripts/generate_features.py --input data/processed/cleaned_dataset.csv
-    python scripts/generate_features.py --output data/features/feature_store.csv
-    python scripts/generate_features.py --no-save-preprocessors
+Feature Engineering Pipeline
 
 Steps
 -----
-    1. Load cleaned dataset from data/processed/cleaned_dataset.csv.
-    2. Run FeatureEngineer.generate_all() — CTR, CPC, ROAS, rolling windows,
-       date features, etc.
-    3. Fit SharedPreprocessor (imputer, scaler, encoder) on the feature set.
-    4. Transform the feature set.
-    5. Save feature store to data/features/feature_store.csv.
-    6. Save fitted preprocessor artefacts to models/preprocessors/.
+1. Load cleaned dataset
+2. Generate derived features
+3. Encode categorical variables
+4. Scale numerical features
+5. Save feature dataset
 
-TODO:
-    - Implement each step once the feature list is defined after EDA.
-    - Add feature selection (variance threshold, correlation pruning).
-    - Add train/val/test split and save splits to data/processed/.
+Usage
+-----
+python scripts/generate_features.py
 """
 
-import argparse
-import logging
-import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import joblib
+import numpy as np
+import pandas as pd
 
-from shared.logger import setup_logger
-
-setup_logger()
-logger = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Pipeline steps
-# ---------------------------------------------------------------------------
-
-def load_cleaned(input_path: str) -> "pd.DataFrame":  # type: ignore[name-defined]
-    """Load the cleaned dataset. TODO: Implement."""
-    import pandas as pd
-    from shared.data_loader import DataLoader
-
-    logger.info("Loading cleaned dataset from %s …", input_path)
-    # TODO: return DataLoader.load_csv(input_path)
-    return pd.DataFrame()
+from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import StandardScaler
 
 
-def engineer_features(df: "pd.DataFrame") -> "pd.DataFrame":  # type: ignore[name-defined]
-    """Run the full feature engineering pipeline. TODO: Implement."""
-    from shared.feature_engineering import FeatureEngineer
+##############################################################
 
-    logger.info("Engineering features … TODO: Implement.")
-    engineer = FeatureEngineer()
-    # TODO: return engineer.generate_all(df)
-    return df
+BASE_DIR = Path(__file__).resolve().parent.parent
 
+INPUT_DATA = (
+    BASE_DIR /
+    "data" /
+    "processed" /
+    "cleaned_dataset.csv"
+)
 
-def fit_preprocessors(df: "pd.DataFrame") -> "pd.DataFrame":  # type: ignore[name-defined]
-    """Fit and transform all shared preprocessors. TODO: Implement."""
-    from shared.preprocess import SharedPreprocessor
+OUTPUT_DIR = (
+    BASE_DIR /
+    "data" /
+    "processed"
+)
 
-    logger.info("Fitting preprocessors … TODO: Implement.")
-    preprocessor = SharedPreprocessor()
-    # TODO: Define numeric_cols and categorical_cols after EDA.
-    numeric_cols: list = []
-    categorical_cols: list = []
-    # TODO: return preprocessor.fit_transform(df, numeric_cols, categorical_cols)
-    return df
+MODEL_DIR = (
+    BASE_DIR /
+    "shared" /
+    "artifacts"
+)
 
+OUTPUT_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
 
-def save_feature_store(df: "pd.DataFrame", output_path: str) -> None:  # type: ignore[name-defined]
-    """Save the feature store CSV. TODO: Implement."""
-    import os
-    os.makedirs(Path(output_path).parent, exist_ok=True)
-    # TODO: df.to_csv(output_path, index=False)
-    logger.info("Feature store saved to %s (placeholder). TODO: Implement.", output_path)
+MODEL_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
 
+OUTPUT_FILE = OUTPUT_DIR / "features_dataset.csv"
 
-def save_preprocessor_artefacts() -> None:
-    """Save fitted scaler, encoder, imputer and feature column list. TODO: Implement."""
-    logger.info("Saving preprocessor artefacts … TODO: Implement.")
-    # TODO: joblib.dump(preprocessor, SCALER_PATH)
-    # TODO: joblib.dump(feature_columns, FEATURE_COLUMNS_PATH)
-
-
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        prog="generate_features.py",
-        description="Run the feature engineering pipeline and save the feature store.",
-    )
-    parser.add_argument(
-        "--input",
-        type=str,
-        default="data/processed/cleaned_dataset.csv",
-        metavar="PATH",
-        help="Path to cleaned dataset CSV (default: data/processed/cleaned_dataset.csv).",
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        default="data/features/feature_store.csv",
-        metavar="PATH",
-        help="Output path for the feature store CSV (default: data/features/feature_store.csv).",
-    )
-    parser.add_argument(
-        "--no-save-preprocessors",
-        action="store_true",
-        default=False,
-        help="Skip saving fitted preprocessor artefacts to models/preprocessors/.",
-    )
-    return parser.parse_args()
+##############################################################
 
 
-def main() -> None:
-    args = parse_args()
-    logger.info("=== Feature engineering pipeline started ===")
+class FeatureGenerator:
 
-    df = load_cleaned(args.input)
-    df = engineer_features(df)
-    df = fit_preprocessors(df)
-    save_feature_store(df, args.output)
+    def __init__(self):
 
-    if not args.no_save_preprocessors:
-        save_preprocessor_artefacts()
+        self.df = None
 
-    logger.info("=== Feature engineering complete. Output: %s ===", args.output)
+    ##########################################################
 
+    def load_dataset(self):
+
+        print("Loading cleaned dataset...")
+
+        self.df = pd.read_csv(INPUT_DATA)
+
+    ##########################################################
+
+    def create_features(self):
+
+        df = self.df
+
+        ##################################################
+
+        df["Revenue_per_Click"] = (
+
+            df["Revenue"]
+
+            /
+
+            (df["Clicks"] + 1)
+
+        )
+
+        df["Conversion_Rate"] = (
+
+            df["Conversions"]
+
+            /
+
+            (df["Clicks"] + 1)
+
+        )
+
+        df["Revenue_to_Spend"] = (
+
+            df["Revenue"]
+
+            /
+
+            (df["Spend"] + 1)
+
+        )
+
+        df["Spend_per_Conversion"] = (
+
+            df["Spend"]
+
+            /
+
+            (df["Conversions"] + 1)
+
+        )
+
+        df["CTR_ROAS"] = (
+
+            df["CTR"]
+
+            *
+
+            df["ROAS"]
+
+        )
+
+        df["Revenue_per_Impression"] = (
+
+            df["Revenue"]
+
+            /
+
+            (df["Impressions"] + 1)
+
+        )
+
+        df["Clicks_per_Impression"] = (
+
+            df["Clicks"]
+
+            /
+
+            (df["Impressions"] + 1)
+
+        )
+
+        df["Cost_per_Impression"] = (
+
+            df["Spend"]
+
+            /
+
+            (df["Impressions"] + 1)
+
+        )
+
+        df["Log_Revenue"] = np.log1p(
+
+            df["Revenue"]
+
+        )
+
+        df["Log_Spend"] = np.log1p(
+
+            df["Spend"]
+
+        )
+
+        df["Log_Clicks"] = np.log1p(
+
+            df["Clicks"]
+
+        )
+
+        df["High_ROAS"] = (
+
+            df["ROAS"] > 3
+
+        ).astype(int)
+
+        self.df = df
+
+    ##########################################################
+
+    def encode_features(self):
+
+        categorical = self.df.select_dtypes(
+
+            include="object"
+
+        ).columns
+
+        encoders = {}
+
+        for column in categorical:
+
+            encoder = LabelEncoder()
+
+            self.df[column] = encoder.fit_transform(
+
+                self.df[column]
+
+            )
+
+            encoders[column] = encoder
+
+        joblib.dump(
+
+            encoders,
+
+            MODEL_DIR /
+
+            "encoders.pkl"
+
+        )
+
+    ##########################################################
+
+    def scale_features(self):
+
+        numeric = self.df.select_dtypes(
+
+            include=np.number
+
+        ).columns
+
+        scaler = StandardScaler()
+
+        self.df[numeric] = scaler.fit_transform(
+
+            self.df[numeric]
+
+        )
+
+        joblib.dump(
+
+            scaler,
+
+            MODEL_DIR /
+
+            "scaler.pkl"
+
+        )
+
+    ##########################################################
+
+    def save(self):
+
+        self.df.to_csv(
+
+            OUTPUT_FILE,
+
+            index=False
+
+        )
+
+        joblib.dump(
+
+            list(self.df.columns),
+
+            MODEL_DIR /
+
+            "feature_columns.pkl"
+
+        )
+
+        print()
+
+        print("=" * 50)
+
+        print("Feature Engineering Completed")
+
+        print("=" * 50)
+
+        print(f"Saved : {OUTPUT_FILE}")
+
+        print(f"Features : {len(self.df.columns)}")
+
+        print("=" * 50)
+
+    ##########################################################
+
+    def run(self):
+
+        self.load_dataset()
+
+        self.create_features()
+
+        self.encode_features()
+
+        self.scale_features()
+
+        self.save()
+
+
+##############################################################
+
+
+def main():
+
+    generator = FeatureGenerator()
+
+    generator.run()
+
+
+##############################################################
 
 if __name__ == "__main__":
+
     main()
+

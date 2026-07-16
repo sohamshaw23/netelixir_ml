@@ -1,75 +1,128 @@
 """
-api/creative_api.py - Creative Performance Blueprint
-======================================================
-Marketing Intelligence AI Platform
+creative_api.py
 
-REST API endpoints for the Creative Performance Scoring module.
+Creative Performance Prediction API
+
+Endpoint
+
+POST /creative/predict
 """
 
-import logging
+from werkzeug.exceptions import HTTPException
+from pathlib import Path
 
-from flask import Blueprint, jsonify, request
+import pandas as pd
 
-logger = logging.getLogger(__name__)
+from flask import Blueprint
+from flask import jsonify
+from flask import request
 
-creative_blueprint = Blueprint("creative", __name__)
-
-
-# ---------------------------------------------------------------------------
-# Routes
-# ---------------------------------------------------------------------------
-
-
-@creative_blueprint.route("/score", methods=["POST"])
-def score_creatives():
-    """
-    Score ad creatives for predicted performance.
-
-    Request Body (JSON):
-        {
-            "data": [ { creative record }, ... ]
-        }
-
-    Returns:
-        JSON: { "scores": [ { "creative_id": str, "score": float,
-                               "rank": int }, ... ] }
-
-    TODO:
-        - Validate and deserialise input payload.
-        - Call creative_performance.inference.CreativeInferencer.predict().
-        - Return ranked scores and feature importances.
-    """
-    payload = request.get_json(silent=True)
-    if payload is None:
-        return jsonify({"error": "Invalid or missing JSON body."}), 400
-
-    logger.info("Creative scoring requested with %d records.", len(payload.get("data", [])))
-
-    # TODO: Implement creative scoring pipeline.
-    return jsonify({"scores": [], "message": "TODO: Creative scoring not yet integrated."}), 200
+from creative_performance.inference import (
+    predict_creative_performance
+)
 
 
-@creative_blueprint.route("/importance", methods=["POST"])
-def feature_importance():
-    """
-    Return feature importance for creative performance predictions.
-
-    TODO:
-        - Call creative_performance.feature_importance.get_importance().
-        - Return top-N features that drive creative performance.
-    """
-    # TODO: Implement feature importance endpoint.
-    return jsonify({"importance": [], "message": "TODO: Feature importance not yet implemented."}), 200
+creative_bp = Blueprint(
+    "creative",
+    __name__
+)
 
 
-@creative_blueprint.route("/top", methods=["GET"])
-def top_creatives():
-    """
-    Return the top-performing creatives from the last scoring run.
+############################################################
 
-    TODO:
-        - Load data/outputs/creative_scores.csv.
-        - Return top-N rows ordered by score descending.
-    """
-    # TODO: Implement top creatives retrieval.
-    return jsonify({"top_creatives": [], "message": "TODO: Top creatives not yet implemented."}), 200
+def load_dataframe(filepath):
+
+    extension = Path(filepath).suffix.lower()
+
+    if extension == ".csv":
+
+        return pd.read_csv(filepath)
+
+    elif extension in [".xlsx", ".xls"]:
+
+        return pd.read_excel(filepath)
+
+    raise ValueError(
+        "Unsupported file format."
+    )
+
+
+############################################################
+
+@creative_bp.route(
+    "/predict",
+    methods=["POST"]
+)
+
+def predict():
+
+    try:
+
+        body = request.get_json()
+
+        if body is None:
+
+            return jsonify({
+
+                "success": False,
+
+                "message": "JSON body required."
+
+            }), 400
+
+        filepath = body.get("filepath")
+
+        if not filepath:
+
+            return jsonify({
+
+                "success": False,
+
+                "message": "filepath missing."
+
+            }), 400
+
+        dataframe = load_dataframe(filepath)
+
+        result = predict_creative_performance(
+            dataframe
+        )
+
+        return jsonify({
+
+            "success": True,
+
+            "result": result
+
+        })
+
+    except FileNotFoundError:
+
+        return jsonify({
+
+            "success": False,
+
+            "message": "Dataset not found."
+
+        }), 404
+
+    except HTTPException as error:
+
+        return jsonify({
+
+            "success": False,
+
+            "message": error.description
+
+        }), error.code
+
+    except Exception as error:
+
+        return jsonify({
+
+            "success": False,
+
+            "message": str(error)
+
+        }), 500
+

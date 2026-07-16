@@ -1,52 +1,102 @@
 """
-revenue_drop_risk/predict.py - Revenue Risk Batch Prediction
-============================================================
-Marketing Intelligence AI Platform
+Revenue Drop Risk Prediction
 
-Standalone script that runs batch prediction on a CSV file and saves
-results to data/outputs/revenue_risk.csv.
+Loads trained model
+Preprocesses new data
+Generates predictions
+Exports results
 """
 
-import logging
-
+from pathlib import Path
+import joblib
 import pandas as pd
 
-from revenue_drop_risk.inference import RevenueRiskInferencer
-from shared.constants import REVENUE_RISK_OUTPUT
-from shared.data_loader import DataLoader
-from shared.helper import dataframe_to_records
+from .config import (
+    MODEL_DIR,
+    OUTPUT_DIR,
+    FEATURE_COLUMNS
+)
 
-logger = logging.getLogger(__name__)
+
+from .preprocess import preprocess
+from .feature_engineering import create_features
 
 
-def run_batch_prediction(input_path: str = None, output_path: str = REVENUE_RISK_OUTPUT) -> None:
-    """
-    Run batch revenue drop risk prediction.
+MODEL_PATH = MODEL_DIR / "xgboost.pkl"
 
-    Args:
-        input_path: Path to input CSV. Defaults to cleaned dataset.
-        output_path: Path to save prediction results.
 
-    TODO:
-        - Load input data.
-        - Run inference.
-        - Save results to output_path.
-    """
-    logger.info("Starting batch revenue risk prediction. TODO: Implement.")
+class RevenueRiskPredictor:
 
-    # TODO: Load data
-    # df = DataLoader.load_csv(input_path) if input_path else DataLoader.load_cleaned()
-    # records = dataframe_to_records(df)
+    def __init__(self):
 
-    # TODO: Run inference
-    # inferencer = RevenueRiskInferencer()
-    # inferencer.load_models()
-    # predictions = inferencer.predict(records)
+        self.model = joblib.load(MODEL_PATH)
 
-    # TODO: Save predictions
-    # pd.DataFrame(predictions).to_csv(output_path, index=False)
-    logger.info("Batch prediction complete (placeholder). Output: %s", output_path)
+    def prepare(self, dataframe):
+        df = dataframe[FEATURE_COLUMNS]
+        df = create_features(df)
+        df = preprocess(df)
+        return df
+
+    def predict(self, dataframe):
+
+        processed = self.prepare(dataframe)
+
+        predictions = self.model.predict(processed)
+
+        probability = self.model.predict_proba(processed)[:, 1]
+
+        result = dataframe.copy()
+
+        result["Revenue_Drop_Risk"] = predictions
+
+        result["Risk_Probability"] = probability
+
+        result["Risk_Level"] = probability_to_label(probability)
+
+        return result
+
+
+def probability_to_label(probability):
+
+    labels = []
+
+    for p in probability:
+
+        if p >= 0.80:
+            labels.append("Critical")
+
+        elif p >= 0.60:
+            labels.append("High")
+
+        elif p >= 0.40:
+            labels.append("Medium")
+
+        else:
+            labels.append("Low")
+
+    return labels
+
+
+def save_predictions(df):
+
+    OUTPUT_DIR.mkdir(exist_ok=True)
+
+    output_path = OUTPUT_DIR / "revenue_risk_predictions.csv"
+
+    df.to_csv(output_path, index=False)
+
+    print(f"Saved predictions to {output_path}")
 
 
 if __name__ == "__main__":
-    run_batch_prediction()
+
+    sample = pd.read_csv("../data/processed/test.csv")
+
+    predictor = RevenueRiskPredictor()
+
+    results = predictor.predict(sample)
+
+    save_predictions(results)
+
+    print(results.head())
+

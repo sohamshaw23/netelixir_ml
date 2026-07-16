@@ -1,25 +1,47 @@
-"""
-anomaly_detection/config.py - Anomaly Detection Configuration
-=============================================================
-Marketing Intelligence AI Platform
-"""
+from pathlib import Path
 
-from shared.constants import ISOLATION_FOREST_MODEL
-from settings import ISOLATION_FOREST_PARAMS
+BASE_DIR = Path(__file__).resolve().parent
 
-# Model path
-ISOLATION_FOREST_MODEL_PATH: str = ISOLATION_FOREST_MODEL
+DATA_PATH = (
+    BASE_DIR.parent /
+    "data" /
+    "processed" /
+    "cleaned_dataset.csv"
+)
 
-# Default hyperparameters
-ISOLATION_FOREST_DEFAULT_PARAMS: dict = ISOLATION_FOREST_PARAMS
+MODEL_DIR = BASE_DIR / "models"
 
-# Anomaly score threshold
-# TODO: Calibrate threshold on labelled validation data.
-ANOMALY_SCORE_THRESHOLD: float = 0.0  # IsolationForest uses decision_function score
+OUTPUT_DIR = BASE_DIR / "outputs"
 
-# Features used for anomaly detection
-# TODO: Populate after feature engineering.
-ANOMALY_FEATURE_COLUMNS: list = []
+LOG_DIR = BASE_DIR / "logs"
 
-# Number of samples to use for training (set None to use all)
-MAX_TRAINING_SAMPLES: int = None
+RANDOM_STATE = 42
+
+CONTAMINATION = 0.05
+
+FEATURE_COLUMNS = [
+
+    "Spend",
+
+    "Revenue",
+
+    "Clicks",
+
+    "Impressions",
+
+    "CTR",
+
+    "CPC",
+
+    "Conversions",
+
+    "ROAS",
+
+    "CampaignType",
+
+    "Channel",
+
+    "Device"
+
+]
+

@@ -1,35 +1,33 @@
-"""
-revenue_drop_risk/config.py - Revenue Drop Risk Module Configuration
-=====================================================================
-Marketing Intelligence AI Platform
-"""
+from pathlib import Path
 
-from shared.constants import LIGHTGBM_MODEL, SHAP_EXPLAINER, XGBOOST_MODEL
-from settings import LIGHTGBM_PARAMS, XGBOOST_PARAMS
+BASE_DIR = Path(__file__).resolve().parent
 
-# Model paths
-XGBOOST_MODEL_PATH: str = XGBOOST_MODEL
-LIGHTGBM_MODEL_PATH: str = LIGHTGBM_MODEL
-SHAP_EXPLAINER_PATH: str = SHAP_EXPLAINER
+DATA_PATH = BASE_DIR.parent / "data" / "processed" / "cleaned_dataset.csv"
 
-# Training parameters
-XGBOOST_DEFAULT_PARAMS: dict = XGBOOST_PARAMS
-LIGHTGBM_DEFAULT_PARAMS: dict = LIGHTGBM_PARAMS
+MODEL_DIR = BASE_DIR / "models"
 
-# Risk thresholds
-# TODO: Calibrate these thresholds on a hold-out validation set.
-LOW_RISK_THRESHOLD: float = 0.3
-HIGH_RISK_THRESHOLD: float = 0.7
+OUTPUT_DIR = BASE_DIR / "outputs"
 
-# Target column
-TARGET_COLUMN: str = "revenue_drop_flag"
+LOG_DIR = BASE_DIR / "logs"
 
-# Feature columns used by this module
-# TODO: Populate after feature engineering is complete.
-FEATURE_COLUMNS: list = []
+MODEL_NAME = "xgboost.pkl"
 
-# Cross-validation folds
-CV_FOLDS: int = 5
+RANDOM_STATE = 42
 
-# SHAP settings
-SHAP_BACKGROUND_SAMPLES: int = 100
+TEST_SIZE = 0.2
+
+TARGET_COLUMN = "RevenueDrop"
+
+FEATURE_COLUMNS = [
+    "Spend",
+    "Clicks",
+    "Impressions",
+    "CTR",
+    "CPC",
+    "Conversions",
+    "Revenue",
+    "ROAS",
+    "CampaignType",
+    "Device",
+    "Channel"
+]

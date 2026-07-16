@@ -1,59 +1,197 @@
 """
-customer_segmentation/inference.py - Segmentation Inference Engine
-===================================================================
-Marketing Intelligence AI Platform
+inference.py
+------------
+
+Customer Segmentation Inference Pipeline
+
+Loads trained KMeans model
+Predicts customer segments
+Generates dashboard-ready summary
 """
 
-import logging
-from typing import Any, Dict, List
+import pandas as pd
 
-import numpy as np
-
-from customer_segmentation.config import KMEANS_MODEL_PATH, SEGMENT_LABELS
-from customer_segmentation.preprocess import SegmentationPreprocessor
-from shared.helper import load_model
-
-logger = logging.getLogger(__name__)
+from .predict import CustomerSegmentPredictor
 
 
-class SegmentationInferencer:
+class CustomerSegmentationInference:
+
+    def __init__(self):
+
+        self.predictor = CustomerSegmentPredictor()
+
+    ##############################################################
+
+    def analyze(self, dataframe):
+
+        result = self.predictor.predict(dataframe)
+
+        summary = self.generate_summary(result)
+
+        response = {
+
+            "summary": summary,
+
+            "segments": self.segment_summary(result),
+
+            "top_customers": self.top_customers(result),
+
+            "results": result.to_dict(
+                orient="records"
+            )
+
+        }
+
+        return response
+
+    ##############################################################
+
+    def generate_summary(self, dataframe):
+
+        return {
+
+            "total_customers": len(dataframe),
+
+            "number_of_segments":
+
+                dataframe["Cluster"].nunique(),
+
+            "largest_segment":
+
+                int(
+
+                    dataframe["Cluster"]
+
+                    .value_counts()
+
+                    .idxmax()
+
+                ),
+
+            "smallest_segment":
+
+                int(
+
+                    dataframe["Cluster"]
+
+                    .value_counts()
+
+                    .idxmin()
+
+                )
+
+        }
+
+    ##############################################################
+
+    def segment_summary(self, dataframe):
+
+        summary = []
+
+        grouped = dataframe.groupby("Cluster")
+
+        for cluster, group in grouped:
+
+            summary.append({
+
+                "cluster":
+
+                    int(cluster),
+
+                "label":
+
+                    group["Business_Label"]
+
+                    .iloc[0],
+
+                "customers":
+
+                    len(group),
+
+                "average_revenue":
+
+                    float(
+
+                        group["Revenue"]
+
+                        .mean()
+
+                    ),
+
+                "average_spend":
+
+                    float(
+
+                        group["Spend"]
+
+                        .mean()
+
+                    ),
+
+                "average_roas":
+
+                    float(
+
+                        group["ROAS"]
+
+                        .mean()
+
+                    )
+
+            })
+
+        return summary
+
+    ##############################################################
+
+    def top_customers(self, dataframe):
+
+        top = dataframe.sort_values(
+
+            by="Revenue",
+
+            ascending=False
+
+        )
+
+        return top.head(10).to_dict(
+
+            orient="records"
+
+        )
+
+
+##############################################################
+
+
+_inference = None
+
+
+def segment_customers(df: pd.DataFrame):
+
     """
-    Loads the trained K-Means model and segments new customers.
-
-    TODO:
-        - Load model from disk.
-        - Implement preprocess() and segment() methods.
-        - Add cluster profile lookup for context.
+    Flask API Entry Point
     """
 
-    def __init__(self) -> None:
-        self.model = None  # TODO: load_model(KMEANS_MODEL_PATH)
-        self.preprocessor = SegmentationPreprocessor()
-        self._model_loaded: bool = False
-        logger.info("SegmentationInferencer initialised. TODO: Load model.")
+    global _inference
 
-    def load_model(self) -> None:
-        """Load model artefact from disk. TODO: Implement."""
-        # TODO: self.model = load_model(KMEANS_MODEL_PATH)
-        self._model_loaded = True
-        logger.info("Segmentation model loaded. TODO: Implement actual loading.")
+    if _inference is None:
 
-    def segment(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """
-        Assign customers to segments.
+        _inference = CustomerSegmentationInference()
 
-        Args:
-            records: List of customer record dictionaries.
+    return _inference.analyze(df)
 
-        Returns:
-            List of dicts with keys: customer_id, segment, segment_label.
 
-        TODO: Implement segmentation pipeline.
-        """
-        # TODO: Implement segmentation.
-        logger.info("Running segmentation on %d records. TODO: Implement.", len(records))
-        return []
+##############################################################
 
-    def _get_label(self, segment_id: int) -> str:
-        """Look up the business label for a cluster ID."""
-        return SEGMENT_LABELS.get(segment_id, f"Segment {segment_id}")
+if __name__ == "__main__":
+
+    sample = pd.read_csv(
+
+        "../data/processed/test.csv"
+
+    )
+
+    result = segment_customers(sample)
+
+    print(result["summary"])

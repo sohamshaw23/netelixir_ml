@@ -1,57 +1,23 @@
-"""
-customer_segmentation/model.py - K-Means Segmentation Model
-============================================================
-Marketing Intelligence AI Platform
-"""
+from sklearn.cluster import KMeans
 
-import logging
-from typing import Any, Dict, Optional
-
-import numpy as np
-
-logger = logging.getLogger(__name__)
+from .config import RANDOM_STATE
 
 
-class KMeansSegmentationModel:
-    """
-    K-Means clustering model for customer segmentation.
+def build_model(k):
 
-    TODO:
-        - Implement fit() using sklearn.cluster.KMeans.
-        - Implement predict() to assign cluster labels.
-        - Implement get_cluster_centers() to return centroid coordinates.
-        - Add silhouette score computation.
-        - Add Elbow method for automatic K selection.
-    """
+    model = KMeans(
 
-    def __init__(self, n_clusters: int = 5, params: Optional[Dict[str, Any]] = None) -> None:
-        self.n_clusters = n_clusters
-        self.params = params or {"random_state": 42, "n_init": 10}
-        self.model = None  # TODO: KMeans(n_clusters=n_clusters, **self.params)
-        self.cluster_centers_: Optional[np.ndarray] = None
-        logger.info("KMeansSegmentationModel initialised. n_clusters=%d", n_clusters)
+        n_clusters=k,
 
-    def fit(self, X: np.ndarray) -> "KMeansSegmentationModel":
-        """Fit K-Means on *X*. TODO: Implement."""
-        # TODO: self.model.fit(X); self.cluster_centers_ = self.model.cluster_centers_
-        logger.info("KMeansSegmentationModel.fit() called. TODO: Implement.")
-        return self
+        random_state=RANDOM_STATE,
 
-    def predict(self, X: np.ndarray) -> np.ndarray:
-        """Assign cluster labels to *X*. TODO: Implement."""
-        # TODO: return self.model.predict(X)
-        return np.zeros(len(X), dtype=int)
+        n_init=20,
 
-    def fit_predict(self, X: np.ndarray) -> np.ndarray:
-        """Fit and predict in one step. TODO: Implement."""
-        self.fit(X)
-        return self.predict(X)
+        init="k-means++",
 
-    def get_cluster_centers(self) -> Optional[np.ndarray]:
-        """Return cluster centre coordinates. TODO: Implement."""
-        return self.cluster_centers_
+        max_iter=500
 
-    def inertia(self) -> Optional[float]:
-        """Return inertia (within-cluster sum of squares). TODO: Implement."""
-        # TODO: return self.model.inertia_
-        return None
+    )
+
+    return model
+

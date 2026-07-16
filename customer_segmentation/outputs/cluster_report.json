@@ -1,0 +1,14 @@
+{
+    "metrics": {
+        "Number of Clusters": 3,
+        "Silhouette Score": 0.18064374102084543,
+        "Calinski Harabasz": 38.291587773410406,
+        "Davies Bouldin": 1.6903286217348317,
+        "Inertia": 2514.849564944291
+    },
+    "distribution": {
+        "0": 85,
+        "1": 103,
+        "2": 12
+    }
+}

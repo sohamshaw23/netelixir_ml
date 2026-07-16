@@ -1,79 +1,210 @@
 """
-revenue_drop_risk/train.py - Revenue Drop Risk Training Script
-==============================================================
-Marketing Intelligence AI Platform
+train.py
 
-Orchestrates the full training pipeline for the Revenue Drop Risk module.
+Revenue Drop Risk Model Training
+--------------------------------
+1. Load dataset
+2. Preprocess data
+3. Feature Engineering
+4. Split Train/Test
+5. Train XGBoost
+6. Evaluate
+7. Save Model
 """
 
-import logging
+from pathlib import Path
+import joblib
+import pandas as pd
 
-from revenue_drop_risk.model import EnsembleRevenueModel
-from revenue_drop_risk.preprocess import RevenuePreprocessor
-from shared.data_loader import DataLoader
-from shared.helper import save_model
-from shared.metrics import classification_metrics
-from revenue_drop_risk.config import XGBOOST_MODEL_PATH, LIGHTGBM_MODEL_PATH
+from sklearn.model_selection import train_test_split
 
-logger = logging.getLogger(__name__)
+from xgboost import XGBClassifier
+
+from .preprocess import preprocess
+from .feature_engineering import create_features
+from .evaluation import evaluate_model
+
+from .config import (
+    DATA_PATH,
+    MODEL_DIR,
+    TARGET_COLUMN,
+    RANDOM_STATE,
+    TEST_SIZE,
+    FEATURE_COLUMNS
+)
 
 
-class RevenueTrainer:
-    """
-    Orchestrates training of the Revenue Drop Risk model.
 
-    TODO:
-        - Load and preprocess data.
-        - Train XGBoost, LightGBM, and ensemble models.
-        - Evaluate on validation set.
-        - Persist models to disk.
-        - Log metrics (optionally to MLflow or W&B).
-    """
+class RevenueRiskTrainer:
 
-    def __init__(self) -> None:
-        self.preprocessor = RevenuePreprocessor()
-        self.model = EnsembleRevenueModel()
-        logger.info("RevenueTrainer initialised.")
+    def __init__(self):
 
-    def run(self) -> None:
-        """
-        Execute the full training pipeline.
+        self.model = None
 
-        Steps:
-            1. Load raw/processed data.
-            2. Preprocess and engineer features.
-            3. Split into train / val / test.
-            4. Train model.
-            5. Evaluate model.
-            6. Save model artefacts.
+    # -----------------------------
+    # Load Dataset
+    # -----------------------------
 
-        TODO: Implement each step.
-        """
-        logger.info("Starting Revenue Drop Risk training pipeline. TODO: Implement.")
+    def load_dataset(self):
 
-        # Step 1: Load data
-        # TODO: df = DataLoader.load_cleaned()
+        print("Loading dataset...")
 
-        # Step 2: Preprocess
-        # TODO: X, y = self.preprocessor.fit_transform(df)
+        df = pd.read_csv(DATA_PATH)
 
-        # Step 3: Split data
-        # TODO: X_train, X_val, X_test, y_train, y_val, y_test = self.preprocessor.split_data(X, y)
+        print(f"Dataset Shape : {df.shape}")
 
-        # Step 4: Train
-        # TODO: self.model.fit(X_train, y_train, X_val, y_val)
+        return df
 
-        # Step 5: Evaluate
-        # TODO: metrics = classification_metrics(y_test, self.model.predict(X_test))
-        # TODO: logger.info("Test metrics: %s", metrics)
+    # -----------------------------
+    # Data Preparation
+    # -----------------------------
 
-        # Step 6: Save
-        # TODO: save_model(self.model.xgb_model.model, XGBOOST_MODEL_PATH)
-        # TODO: save_model(self.model.lgbm_model.model, LIGHTGBM_MODEL_PATH)
+    def prepare_dataset(self, df):
+        df = df[FEATURE_COLUMNS + [TARGET_COLUMN]]
+        df = create_features(df)
+        df = preprocess(df)
+        X = df.drop(columns=[TARGET_COLUMN])
+        y = df[TARGET_COLUMN]
+        return X, y
 
-        logger.info("Revenue training pipeline complete (placeholder). TODO: Implement all steps.")
+
+    # -----------------------------
+    # Split Dataset
+    # -----------------------------
+
+    def split_data(self, X, y):
+
+        return train_test_split(
+
+            X,
+            y,
+
+            test_size=TEST_SIZE,
+
+            random_state=RANDOM_STATE,
+
+            stratify=y
+
+        )
+
+    # -----------------------------
+    # Build Model
+    # -----------------------------
+
+    def build_model(self):
+
+        return XGBClassifier(
+
+            n_estimators=500,
+
+            learning_rate=0.03,
+
+            max_depth=7,
+
+            subsample=0.8,
+
+            colsample_bytree=0.8,
+
+            gamma=2,
+
+            min_child_weight=3,
+
+            objective="binary:logistic",
+
+            eval_metric="logloss",
+
+            random_state=RANDOM_STATE
+
+        )
+
+    # -----------------------------
+    # Train
+    # -----------------------------
+
+    def train(self):
+
+        df = self.load_dataset()
+
+        X, y = self.prepare_dataset(df)
+
+        (
+            X_train,
+            X_test,
+            y_train,
+            y_test
+
+        ) = self.split_data(X, y)
+
+        self.model = self.build_model()
+
+        print("Training Model...\n")
+
+        self.model.fit(
+
+            X_train,
+
+            y_train
+
+        )
+
+        print("Training Completed.\n")
+
+        evaluate_model(
+
+            self.model,
+
+            X_train,
+
+            X_test,
+
+            y_test
+
+        )
+
+        self.save_model(X_train.columns)
+
+    # -----------------------------
+    # Save
+    # -----------------------------
+
+    def save_model(self, feature_columns):
+
+        MODEL_DIR.mkdir(
+
+            parents=True,
+
+            exist_ok=True
+
+        )
+
+        joblib.dump(
+
+            self.model,
+
+            MODEL_DIR / "xgboost.pkl"
+
+        )
+
+        joblib.dump(
+
+            list(feature_columns),
+
+            MODEL_DIR / "feature_columns.pkl"
+
+        )
+
+        print("Model Saved Successfully.")
+
+        print(MODEL_DIR/"xgboost.pkl")
+
+
+def main():
+
+    trainer = RevenueRiskTrainer()
+
+    trainer.train()
 
 
 if __name__ == "__main__":
-    trainer = RevenueTrainer()
-    trainer.run()
+
+    main()

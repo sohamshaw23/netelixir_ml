@@ -1,51 +1,205 @@
 """
-customer_segmentation/train.py - Customer Segmentation Training
-================================================================
-Marketing Intelligence AI Platform
+train.py
+
+Customer Segmentation Training Pipeline
+
+Steps
+-----
+
+1. Load Dataset
+2. Preprocess Data
+3. Feature Engineering
+4. Find Best K
+5. Train KMeans
+6. Save Model
+7. Generate Reports
+8. Visualizations
 """
 
-import logging
+import json
+import joblib
+import pandas as pd
 
-from customer_segmentation.cluster_analysis import ClusterAnalyser
-from customer_segmentation.config import KMEANS_DEFAULT_PARAMS, KMEANS_MODEL_PATH, N_CLUSTERS
-from customer_segmentation.model import KMeansSegmentationModel
-from customer_segmentation.preprocess import SegmentationPreprocessor
-from shared.data_loader import DataLoader
-from shared.helper import save_model
+from .preprocess import preprocess
+from .feature_engineering import create_features
 
-logger = logging.getLogger(__name__)
+from .model import build_model
+
+from .visualization import ClusterVisualizer
+from .cluster_analysis import ClusterAnalysis
+from .evaluation import ClusterEvaluator
+
+from .config import (
+
+    DATA_PATH,
+
+    MODEL_DIR,
+
+    FEATURE_COLUMNS
+
+)
 
 
-class SegmentationTrainer:
-    """
-    Orchestrates Customer Segmentation training.
+class CustomerSegmentationTrainer:
 
-    TODO:
-        - Run Elbow / Silhouette analysis to determine optimal K.
-        - Train K-Means with the optimal K.
-        - Profile clusters and log insights.
-        - Persist model to disk.
-    """
+    def __init__(self):
 
-    def __init__(self) -> None:
-        self.preprocessor = SegmentationPreprocessor()
-        self.model = KMeansSegmentationModel(n_clusters=N_CLUSTERS, params=KMEANS_DEFAULT_PARAMS)
-        self.analyser = ClusterAnalyser()
-        logger.info("SegmentationTrainer initialised.")
+        self.analysis = ClusterAnalysis()
 
-    def run(self) -> None:
-        """Execute the segmentation training pipeline. TODO: Implement."""
-        logger.info("Starting Customer Segmentation training. TODO: Implement.")
+        self.visualizer = ClusterVisualizer()
 
-        # TODO: df = DataLoader.load_feature_store()
-        # TODO: X = self.preprocessor.fit_transform(df)
-        # TODO: labels = self.model.fit_predict(X)
-        # TODO: profiles = self.analyser.profile_clusters(df, "segment")
-        # TODO: save_model(self.model.model, KMEANS_MODEL_PATH)
+        self.evaluator = ClusterEvaluator()
 
-        logger.info("Segmentation training complete (placeholder).")
+    #########################################################
 
+    def load_dataset(self):
+
+        print("Loading Dataset...")
+
+        df = pd.read_csv(DATA_PATH)
+
+        print(df.shape)
+
+        return df
+
+    #########################################################
+
+    def prepare(self, dataframe):
+        dataframe = dataframe[FEATURE_COLUMNS]
+        dataframe = create_features(dataframe)
+        dataframe = preprocess(dataframe)
+        return dataframe
+
+    #########################################################
+
+    def train(self):
+
+        df = self.load_dataset()
+
+        X = self.prepare(df)
+
+        print("Finding Optimal Clusters...")
+
+        inertia = self.analysis.elbow_method(X)
+
+        silhouette = self.analysis.silhouette_scores(X)
+
+        best_k = self.analysis.best_cluster(
+
+            silhouette
+
+        )
+
+        print(f"Best K = {best_k}")
+
+        model = build_model(best_k)
+
+        labels = model.fit_predict(X)
+
+        X["Cluster"] = labels
+
+        MODEL_DIR.mkdir(
+
+            parents=True,
+
+            exist_ok=True
+
+        )
+
+        joblib.dump(
+
+            model,
+
+            MODEL_DIR /
+
+            "kmeans.pkl"
+
+        )
+
+        joblib.dump(
+
+            list(X.columns),
+
+            MODEL_DIR /
+
+            "feature_columns.pkl"
+
+        )
+
+        profile = self.analysis.cluster_profile(X)
+
+        cluster_labels = self.analysis.business_labels(profile)
+
+        with open(
+            MODEL_DIR / "cluster_labels.json",
+            "w"
+        ) as file:
+            json.dump(cluster_labels, file, indent=4)
+
+        self.analysis.cluster_size(X)
+
+        self.analysis.recommendations(cluster_labels)
+
+        self.evaluator.evaluate_all(
+
+            X.drop(columns=["Cluster"]),
+
+            labels,
+
+            model
+
+        )
+
+        self.visualizer.visualize_all(
+
+            X.drop(columns=["Cluster"]),
+
+            labels,
+
+            inertia,
+
+            silhouette,
+
+            model.cluster_centers_
+
+        )
+
+        X.to_csv(
+
+            "outputs/customer_segments.csv",
+
+            index=False
+
+        )
+
+        print()
+
+        print("="*50)
+
+        print("Customer Segmentation Completed")
+
+        print("="*50)
+
+        print(f"Optimal Clusters : {best_k}")
+
+        print(f"Customers : {len(X)}")
+
+        print("="*50)
+
+
+#########################################################
+
+
+def main():
+
+    trainer = CustomerSegmentationTrainer()
+
+    trainer.train()
+
+
+#########################################################
 
 if __name__ == "__main__":
-    trainer = SegmentationTrainer()
-    trainer.run()
+
+    main()
+

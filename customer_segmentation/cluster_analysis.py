@@ -1,76 +1,306 @@
 """
-customer_segmentation/cluster_analysis.py - Cluster Analysis Tools
-===================================================================
-Marketing Intelligence AI Platform
+cluster_analysis.py
 
-Tools for selecting optimal K, profiling clusters, and generating
-cluster insights.
+Cluster Analysis Utilities
+
+Features
+--------
+1. Elbow Method
+2. Silhouette Score
+3. Optimal Cluster Selection
+4. Cluster Profiling
+5. Business Labels
+6. Recommendations
 """
 
-import logging
-from typing import Dict, List, Optional, Tuple
+import json
 
-import numpy as np
 import pandas as pd
 
-logger = logging.getLogger(__name__)
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+
+from .config import (
+    MAX_CLUSTERS,
+    OUTPUT_DIR,
+    RANDOM_STATE
+)
 
 
-class ClusterAnalyser:
-    """
-    Analyses K-Means clustering results to produce business insights.
+class ClusterAnalysis:
 
-    TODO:
-        - Implement elbow_method() to find optimal K.
-        - Implement silhouette_analysis() for cluster quality.
-        - Implement profile_clusters() to summarise each segment.
-        - Implement rank_clusters() by business value metrics.
-    """
+    def __init__(self):
 
-    def elbow_method(self, X: np.ndarray, k_range: range = range(2, 11)) -> Dict[int, float]:
-        """
-        Compute inertia for each K in *k_range* (Elbow method).
+        OUTPUT_DIR.mkdir(
+            parents=True,
+            exist_ok=True
+        )
 
-        Returns:
-            dict: {k: inertia}
+    ##############################################################
 
-        TODO: Implement Elbow method.
-        """
-        # TODO: Fit KMeans for each K and record inertia.
-        logger.info("Running Elbow method. TODO: Implement.")
-        return {}
+    def elbow_method(self, X):
 
-    def silhouette_analysis(self, X: np.ndarray, k_range: range = range(2, 11)) -> Dict[int, float]:
-        """
-        Compute silhouette score for each K.
+        inertia = []
 
-        Returns:
-            dict: {k: silhouette_score}
+        for k in range(2, MAX_CLUSTERS + 1):
 
-        TODO: Implement silhouette analysis.
-        """
-        # TODO: Compute silhouette scores.
-        logger.info("Running silhouette analysis. TODO: Implement.")
-        return {}
+            model = KMeans(
 
-    def profile_clusters(self, df: pd.DataFrame, label_col: str) -> pd.DataFrame:
-        """
-        Generate statistical profiles (mean, std) per cluster.
+                n_clusters=k,
 
-        Returns:
-            pd.DataFrame: Cluster profiles.
+                random_state=RANDOM_STATE,
 
-        TODO: Implement group-by and aggregation.
-        """
-        # TODO: return df.groupby(label_col).agg(["mean", "std"]).reset_index()
-        logger.info("Profiling clusters. TODO: Implement.")
-        return pd.DataFrame()
+                n_init=20
 
-    def rank_clusters(self, profiles: pd.DataFrame, metric: str) -> pd.DataFrame:
-        """
-        Rank clusters by a given business metric.
+            )
 
-        TODO: Implement ranking logic.
-        """
-        # TODO: Sort profiles by metric descending.
-        return profiles
+            model.fit(X)
+
+            inertia.append(model.inertia_)
+
+        return inertia
+
+    ##############################################################
+
+    def silhouette_scores(self, X):
+
+        scores = []
+
+        for k in range(2, MAX_CLUSTERS + 1):
+
+            model = KMeans(
+
+                n_clusters=k,
+
+                random_state=RANDOM_STATE,
+
+                n_init=20
+
+            )
+
+            labels = model.fit_predict(X)
+
+            score = silhouette_score(
+
+                X,
+
+                labels
+
+            )
+
+            scores.append(score)
+
+        return scores
+
+    ##############################################################
+
+    def best_cluster(self, scores):
+
+        return scores.index(max(scores)) + 2
+
+    ##############################################################
+
+    def cluster_profile(self, dataframe):
+
+        profile = dataframe.groupby(
+
+            "Cluster"
+
+        ).mean(numeric_only=True)
+
+        profile.to_csv(
+
+            OUTPUT_DIR /
+
+            "cluster_profiles.csv"
+
+        )
+
+        return profile
+
+    ##############################################################
+
+    def cluster_size(self, dataframe):
+
+        summary = dataframe["Cluster"].value_counts()
+
+        summary.to_csv(
+
+            OUTPUT_DIR /
+
+            "cluster_summary.csv"
+
+        )
+
+        return summary
+
+    ##############################################################
+
+    def business_labels(self, profile):
+
+        labels = {}
+
+        revenue_avg = profile["Revenue"].mean()
+
+        spend_avg = profile["Spend"].mean()
+
+        roas_avg = profile["ROAS"].mean()
+
+        for cluster, row in profile.iterrows():
+
+            if (
+
+                row["Revenue"] > revenue_avg
+
+                and
+
+                row["ROAS"] > roas_avg
+
+            ):
+
+                labels[int(cluster)] = "High Value"
+
+            elif (
+
+                row["Spend"] > spend_avg
+
+                and
+
+                row["ROAS"] < roas_avg
+
+            ):
+
+                labels[int(cluster)] = "Budget Drain"
+
+            elif (
+
+                row["Revenue"] < revenue_avg
+
+            ):
+
+                labels[int(cluster)] = "Growth Opportunity"
+
+            else:
+
+                labels[int(cluster)] = "Stable"
+
+        with open(
+
+            OUTPUT_DIR /
+
+            "cluster_labels.json",
+
+            "w"
+
+        ) as file:
+
+            json.dump(
+
+                labels,
+
+                file,
+
+                indent=4
+
+            )
+
+        return labels
+
+    ##############################################################
+
+    def recommendations(self, labels):
+
+        recommendations = {}
+
+        for cluster, label in labels.items():
+
+            if label == "High Value":
+
+                recommendations[cluster] = (
+
+                    "Increase budget and prioritize retention."
+
+                )
+
+            elif label == "Budget Drain":
+
+                recommendations[cluster] = (
+
+                    "Optimize spend and improve creatives."
+
+                )
+
+            elif label == "Growth Opportunity":
+
+                recommendations[cluster] = (
+
+                    "Increase engagement campaigns."
+
+                )
+
+            else:
+
+                recommendations[cluster] = (
+
+                    "Maintain current strategy."
+
+                )
+
+        df = pd.DataFrame({
+
+            "Cluster": recommendations.keys(),
+
+            "Recommendation": recommendations.values()
+
+        })
+
+        df.to_csv(
+
+            OUTPUT_DIR /
+
+            "recommendations.csv",
+
+            index=False
+
+        )
+
+        return recommendations
+
+    ##############################################################
+
+    def analyze(self, dataframe):
+
+        profile = self.cluster_profile(
+
+            dataframe
+
+        )
+
+        self.cluster_size(
+
+            dataframe
+
+        )
+
+        labels = self.business_labels(
+
+            profile
+
+        )
+
+        recommendations = self.recommendations(
+
+            labels
+
+        )
+
+        return {
+
+            "profile": profile,
+
+            "labels": labels,
+
+            "recommendations": recommendations
+
+        }
+

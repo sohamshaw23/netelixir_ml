@@ -1,34 +1,76 @@
 """
-run.py - Application Entry Point
-=================================
-Marketing Intelligence AI Platform
+run.py
 
-Use this file to start the application in development mode:
+Application Entry Point
+
+Usage
+-----
+Development:
     python run.py
 
-For production, prefer Gunicorn:
-    gunicorn -w 4 -b 0.0.0.0:5000 "app:create_app()"
+Production:
+    gunicorn run:app
+
+Author : Team AIgnition
+Version : 1.0.0
 """
 
-from app import create_app
-from config import DevelopmentConfig, ProductionConfig
 import os
 
-# ---------------------------------------------------------------------------
-# Select configuration based on FLASK_ENV environment variable
-# ---------------------------------------------------------------------------
-env = os.getenv("FLASK_ENV", "development").lower()
+from app import app
 
-if env == "production":
-    config = ProductionConfig
-else:
-    config = DevelopmentConfig
+from settings import (
 
-app = create_app(config)
+    HOST,
+
+    PORT,
+
+    DEBUG
+
+)
+
+############################################################
+# Main
+############################################################
+
+def main():
+
+    print()
+
+    print("=" * 70)
+
+    print("Marketing Intelligence Platform")
+
+    print("=" * 70)
+
+    print(f"Environment : {os.getenv('APP_ENV', 'development')}")
+
+    print(f"Host        : {HOST}")
+
+    print(f"Port        : {PORT}")
+
+    print(f"Debug       : {DEBUG}")
+
+    print("=" * 70)
+
+    print()
+
+    app.run(
+
+        host=HOST,
+
+        port=PORT,
+
+        debug=DEBUG,
+
+        threaded=True
+
+    )
+
+
+############################################################
 
 if __name__ == "__main__":
-    app.run(
-        host=app.config.get("HOST", "0.0.0.0"),
-        port=int(app.config.get("PORT", 5000)),
-        debug=app.config.get("DEBUG", True),
-    )
+
+    main()
+

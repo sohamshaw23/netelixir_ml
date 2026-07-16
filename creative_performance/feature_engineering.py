@@ -1,45 +1,63 @@
-"""
-creative_performance/feature_importance.py - Creative Feature Importance
-========================================================================
-Marketing Intelligence AI Platform
-"""
-
-import logging
-from typing import Dict, List, Optional
-
 import numpy as np
-import pandas as pd
-
-logger = logging.getLogger(__name__)
 
 
-def get_importance(model, feature_names: List[str], top_n: int = 20) -> Dict[str, float]:
-    """
-    Extract and return top-N feature importances from a trained CatBoost model.
+def create_features(df):
 
-    Args:
-        model: Trained CatBoostRegressor / CatBoostClassifier.
-        feature_names: List of feature names in the training data.
-        top_n: Number of top features to return.
+    df = df.copy()
 
-    Returns:
-        dict: { feature_name: importance_score } sorted descending.
+    df["Revenue_per_Click"] = (
 
-    TODO:
-        - Call model.get_feature_importance().
-        - Pair with feature_names.
-        - Return top-N sorted by importance.
-    """
-    # TODO: Implement feature importance extraction.
-    logger.info("Extracting feature importance. TODO: Implement.")
-    return {}
+        df["Revenue"]
 
+        /
 
-def plot_importance(importances: Dict[str, float], top_n: int = 20):
-    """
-    Generate a Plotly bar chart of feature importances.
+        (df["Clicks"] + 1)
 
-    TODO: Use shared.visualization.plot_feature_importance().
-    """
-    # TODO: Implement importance visualisation.
-    pass
+    )
+
+    df["Conversion_Rate"] = (
+
+        df["Conversions"]
+
+        /
+
+        (df["Clicks"] + 1)
+
+    )
+
+    df["Revenue_to_Spend"] = (
+
+        df["Revenue"]
+
+        /
+
+        (df["Spend"] + 1)
+
+    )
+
+    df["Spend_per_Conversion"] = (
+
+        df["Spend"]
+
+        /
+
+        (df["Conversions"] + 1)
+
+    )
+
+    df["CTR_ROAS"] = (
+
+        df["CTR"]
+
+        *
+
+        df["ROAS"]
+
+    )
+
+    df["Log_Revenue"] = np.log1p(df["Revenue"])
+
+    df["Log_Spend"] = np.log1p(df["Spend"])
+
+    return df
+

@@ -1,99 +1,225 @@
 """
-revenue_drop_risk/shap_analysis.py - SHAP Explainability
-=========================================================
-Marketing Intelligence AI Platform
+SHAP Explainability Module
 
-Generates SHAP (SHapley Additive exPlanations) values and visualisations
-for the Revenue Drop Risk model predictions.
+Generates:
+1. SHAP Summary Plot
+2. SHAP Bar Plot
+3. SHAP Waterfall Plot
+4. SHAP Force Plot
+5. SHAP Values CSV
 """
 
-import logging
-from typing import Any, Dict, List, Optional
-
-import numpy as np
+from pathlib import Path
+import joblib
+# pyrefly: ignore [missing-import]
+import shap
 import pandas as pd
+import matplotlib.pyplot as plt
 
-logger = logging.getLogger(__name__)
+from .config import MODEL_DIR, OUTPUT_DIR
 
 
-class SHAPAnalyser:
-    """
-    Generates SHAP explanations for the Revenue Drop Risk model.
+class SHAPAnalyzer:
 
-    TODO:
-        - Initialise shap.TreeExplainer with the trained XGBoost model.
-        - Implement compute_shap_values() to calculate SHAP values.
-        - Implement explain_single() for per-record explanations.
-        - Implement global_importance() for dataset-level importance.
-        - Generate waterfall and beeswarm plots.
-    """
+    def __init__(self):
 
-    def __init__(self, model: Any = None, background_data: np.ndarray = None) -> None:
-        """
-        Initialise the SHAP explainer.
+        self.model = joblib.load(
+            MODEL_DIR / "xgboost.pkl"
+        )
 
-        Args:
-            model: Trained XGBoost or LightGBM model object.
-            background_data: Background dataset for KernelExplainer (optional).
+        self.explainer = shap.TreeExplainer(
+            self.model
+        )
 
-        TODO: Instantiate shap.TreeExplainer(model).
-        """
-        self.model = model
-        self.explainer = None  # TODO: shap.TreeExplainer(model)
-        self.background_data = background_data
-        logger.info("SHAPAnalyser initialised. TODO: Create explainer.")
+    # ----------------------------------
 
-    def fit(self, model: Any, background_data: np.ndarray = None) -> "SHAPAnalyser":
-        """
-        Fit the SHAP explainer to the given model.
+    def compute(self, X):
 
-        TODO: Implement explainer fitting.
-        """
-        self.model = model
-        # TODO: self.explainer = shap.TreeExplainer(model)
-        return self
+        shap_values = self.explainer.shap_values(X)
 
-    def compute_shap_values(self, X: np.ndarray) -> np.ndarray:
-        """
-        Compute SHAP values for a feature matrix.
+        return shap_values
 
-        Args:
-            X: Feature matrix of shape (n_samples, n_features).
+    # ----------------------------------
 
-        Returns:
-            np.ndarray: SHAP values of shape (n_samples, n_features).
+    def summary_plot(self, X):
 
-        TODO: return self.explainer.shap_values(X)
-        """
-        # TODO: Implement SHAP value computation.
-        logger.info("Computing SHAP values. TODO: Implement.")
-        return np.array([])
+        shap_values = self.compute(X)
 
-    def explain_single(self, record: Dict[str, Any], feature_names: List[str]) -> Dict[str, float]:
-        """
-        Generate SHAP explanation for a single record.
+        plt.figure()
 
-        Returns:
-            dict: { feature_name: shap_value }
+        shap.summary_plot(
 
-        TODO: Implement single-record explanation.
-        """
-        # TODO: Implement single-record SHAP explanation.
-        return {}
+            shap_values,
 
-    def global_importance(self, X: np.ndarray, feature_names: List[str]) -> Dict[str, float]:
-        """
-        Compute mean absolute SHAP values as global feature importance.
+            X,
 
-        Returns:
-            dict: { feature_name: mean_abs_shap_value } sorted descending.
+            show=False
 
-        TODO: Implement global importance computation.
-        """
-        # TODO: Implement global feature importance from SHAP.
-        return {}
+        )
 
-    def save_explainer(self, path: str) -> None:
-        """Persist the SHAP explainer to disk. TODO: Implement."""
-        # TODO: joblib.dump(self.explainer, path)
-        logger.info("Saving SHAP explainer to %s. TODO: Implement.", path)
+        plt.savefig(
+
+            OUTPUT_DIR / "shap_summary.png",
+
+            dpi=300,
+
+            bbox_inches="tight"
+
+        )
+
+        plt.close()
+
+    # ----------------------------------
+
+    def bar_plot(self, X):
+
+        shap_values = self.compute(X)
+
+        plt.figure()
+
+        shap.summary_plot(
+
+            shap_values,
+
+            X,
+
+            plot_type="bar",
+
+            show=False
+
+        )
+
+        plt.savefig(
+
+            OUTPUT_DIR / "shap_bar.png",
+
+            dpi=300,
+
+            bbox_inches="tight"
+
+        )
+
+        plt.close()
+
+    # ----------------------------------
+
+    def waterfall(self, X):
+
+        shap_values = self.compute(X)
+
+        explanation = shap.Explanation(
+
+            values=shap_values[0],
+
+            base_values=self.explainer.expected_value,
+
+            data=X.iloc[0],
+
+            feature_names=X.columns
+
+        )
+
+        plt.figure()
+
+        shap.plots.waterfall(
+
+            explanation,
+
+            show=False
+
+        )
+
+        plt.savefig(
+
+            OUTPUT_DIR / "waterfall.png",
+
+            dpi=300,
+
+            bbox_inches="tight"
+
+        )
+
+        plt.close()
+
+    # ----------------------------------
+
+    def save_values(self, X):
+
+        shap_values = self.compute(X)
+
+        df = pd.DataFrame(
+
+            shap_values,
+
+            columns=X.columns
+
+        )
+
+        df.to_csv(
+
+            OUTPUT_DIR / "shap_values.csv",
+
+            index=False
+
+        )
+
+    # ----------------------------------
+
+    def feature_importance(self, X):
+
+        shap_values = self.compute(X)
+
+        importance = abs(shap_values).mean(axis=0)
+
+        feature_df = pd.DataFrame({
+
+            "Feature": X.columns,
+
+            "Importance": importance
+
+        })
+
+        feature_df = feature_df.sort_values(
+
+            "Importance",
+
+            ascending=False
+
+        )
+
+        feature_df.to_csv(
+
+            OUTPUT_DIR /
+
+            "feature_importance.csv",
+
+            index=False
+
+        )
+
+        return feature_df
+
+    # ----------------------------------
+
+    def explain(self, X):
+
+        OUTPUT_DIR.mkdir(
+
+            parents=True,
+
+            exist_ok=True
+
+        )
+
+        self.summary_plot(X)
+
+        self.bar_plot(X)
+
+        self.waterfall(X)
+
+        self.save_values(X)
+
+        self.feature_importance(X)
+
+        print("SHAP analysis completed.")
+

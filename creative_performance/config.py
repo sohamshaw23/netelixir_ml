@@ -1,24 +1,53 @@
-"""
-creative_performance/config.py - Creative Performance Configuration
-===================================================================
-Marketing Intelligence AI Platform
-"""
+from pathlib import Path
 
-from shared.constants import CATBOOST_MODEL
-from settings import CATBOOST_PARAMS
+BASE_DIR = Path(__file__).resolve().parent
 
-CATBOOST_MODEL_PATH: str = CATBOOST_MODEL
-CATBOOST_DEFAULT_PARAMS: dict = CATBOOST_PARAMS
+DATA_PATH = (
+    BASE_DIR.parent /
+    "data" /
+    "processed" /
+    "cleaned_dataset.csv"
+)
 
-# Target column
-TARGET_COLUMN: str = "creative_performance_score"
+MODEL_DIR = BASE_DIR / "models"
 
-# Feature columns used for creative scoring
-# TODO: Define after EDA and feature engineering.
-FEATURE_COLUMNS: list = []
+OUTPUT_DIR = BASE_DIR / "outputs"
 
-# Top-N creatives to surface in the dashboard
-TOP_N_CREATIVES: int = 10
+LOG_DIR = BASE_DIR / "logs"
 
-# Minimum impressions required for a creative to be scored
-MIN_IMPRESSIONS_THRESHOLD: int = 1000
+RANDOM_STATE = 42
+
+TEST_SIZE = 0.2
+
+TARGET_COLUMN = "CreativePerformance"
+
+FEATURE_COLUMNS = [
+
+    "Spend",
+
+    "Revenue",
+
+    "Clicks",
+
+    "Impressions",
+
+    "CTR",
+
+    "CPC",
+
+    "Conversions",
+
+    "ROAS",
+
+    "CampaignType",
+
+    "Device",
+
+    "Channel",
+
+    "Audience",
+
+    "CreativeType"
+
+]
+

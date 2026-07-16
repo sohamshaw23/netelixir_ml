@@ -1,109 +1,307 @@
 """
-app.py - Flask Application Factory
-===================================
-Marketing Intelligence AI Platform
+app.py
 
-Initializes and configures the Flask application, registers all Blueprints,
-sets up logging, and prepares the app for production use via Gunicorn or
-the built-in dev server.
+Marketing Intelligence Platform
+
+Main Flask Application
+
+Author : Team AIgnition
+Version : 1.0.0
 """
 
-import logging
-import os
-
 from flask import Flask
+from flask import jsonify
 
-from api import (
-    anomaly_blueprint,
-    creative_blueprint,
-    revenue_blueprint,
-    segmentation_blueprint,
-    upload_blueprint,
+from flask_cors import CORS
+
+from config import config
+
+from api.routes import register_routes
+
+from shared.logger import get_logger
+
+from models import registry
+
+
+############################################################
+# Create Flask App
+############################################################
+
+app = Flask(__name__)
+
+############################################################
+# Load Configuration
+############################################################
+
+app.config.from_object(
+
+    config["development"]
+
 )
-from api.health import health_blueprint
-from api.routes import routes_blueprint
-from config import Config
-from shared.logger import setup_logger
 
+############################################################
+# Enable CORS
+############################################################
 
-def create_app(config_object: object = Config) -> Flask:
-    """
-    Application factory function.
+CORS(
 
-    Creates and configures the Flask application instance, registers all
-    Blueprints, initialises logging, and ensures required directories exist.
+    app,
 
-    Args:
-        config_object: A configuration class (defaults to :class:`config.Config`).
+    resources={
 
-    Returns:
-        Flask: The configured Flask application instance.
-    """
-    app = Flask(
-        __name__,
-        template_folder="templates",
-        static_folder="static",
+        r"/*": {
+
+            "origins": "*"
+
+        }
+
+    }
+
+)
+
+############################################################
+# Logger
+############################################################
+
+logger = get_logger(
+
+    "MarketingAI"
+
+)
+
+############################################################
+# Register Routes
+############################################################
+
+register_routes(app)
+
+############################################################
+# Load Models
+############################################################
+
+try:
+
+    registry.load_all()
+
+    logger.info(
+
+        "All ML Models Loaded Successfully."
+
     )
 
-    # ------------------------------------------------------------------
-    # Load configuration
-    # ------------------------------------------------------------------
-    app.config.from_object(config_object)
+except Exception as e:
 
-    # ------------------------------------------------------------------
-    # Logging
-    # ------------------------------------------------------------------
-    setup_logger()
-    logger = logging.getLogger(__name__)
-    logger.info("Starting Marketing Intelligence AI Platform …")
+    logger.exception(
 
-    # ------------------------------------------------------------------
-    # Ensure required runtime directories exist
-    # ------------------------------------------------------------------
-    _ensure_directories(app)
+        "Model Loading Failed"
 
-    # ------------------------------------------------------------------
-    # Register Blueprints
-    # ------------------------------------------------------------------
-    _register_blueprints(app)
+    )
 
-    logger.info("All Blueprints registered successfully.")
-    return app
+############################################################
+# Root Route
+############################################################
+
+@app.route(
+
+    "/",
+
+    methods=["GET"]
+
+)
+
+def home():
+
+    return jsonify(
+
+        {
+
+            "project":
+
+                "Marketing Intelligence Platform",
+
+            "version":
+
+                "1.0.0",
+
+            "status":
+
+                "Running",
+
+            "models":[
+
+                "Revenue Drop Risk",
+
+                "Anomaly Detection",
+
+                "Customer Segmentation",
+
+                "Creative Performance"
+
+            ],
+
+            "api":[
+
+                "/health",
+
+                "/upload",
+
+                "/revenue/predict",
+
+                "/anomaly/detect",
+
+                "/segment/predict",
+
+                "/creative/predict"
+
+            ]
+
+        }
+
+    )
+
+############################################################
+# Error Handlers
+############################################################
+
+@app.errorhandler(404)
+
+def page_not_found(error):
+
+    return jsonify(
+
+        {
+
+            "success": False,
+
+            "message": "Endpoint Not Found"
+
+        }
+
+    ),404
 
 
-def _ensure_directories(app: Flask) -> None:
-    """Create runtime directories that must exist before the first request."""
-    dirs = [
-        app.config.get("UPLOAD_FOLDER", "uploads"),
-        "logs",
-        os.path.join("data", "raw"),
-        os.path.join("data", "processed"),
-        os.path.join("data", "features"),
-        os.path.join("data", "outputs"),
-    ]
-    for directory in dirs:
-        os.makedirs(directory, exist_ok=True)
+############################################################
+
+@app.errorhandler(405)
+
+def method_not_allowed(error):
+
+    return jsonify(
+
+        {
+
+            "success": False,
+
+            "message": "Method Not Allowed"
+
+        }
+
+    ),405
 
 
-def _register_blueprints(app: Flask) -> None:
-    """Register all application Blueprints with their URL prefixes."""
-    app.register_blueprint(health_blueprint, url_prefix="/health")
-    app.register_blueprint(routes_blueprint, url_prefix="/")
-    app.register_blueprint(upload_blueprint, url_prefix="/api/upload")
-    app.register_blueprint(revenue_blueprint, url_prefix="/api/revenue")
-    app.register_blueprint(anomaly_blueprint, url_prefix="/api/anomaly")
-    app.register_blueprint(segmentation_blueprint, url_prefix="/api/segmentation")
-    app.register_blueprint(creative_blueprint, url_prefix="/api/creative")
+############################################################
+
+@app.errorhandler(413)
+
+def file_too_large(error):
+
+    return jsonify(
+
+        {
+
+            "success": False,
+
+            "message":
+
+            "Uploaded file is too large."
+
+        }
+
+    ),413
 
 
-# ---------------------------------------------------------------------------
-# Module-level app instance (used by Gunicorn when running via run.py)
-# ---------------------------------------------------------------------------
-app = create_app()
+############################################################
+
+@app.errorhandler(500)
+
+def internal_server_error(error):
+
+    logger.exception(error)
+
+    return jsonify(
+
+        {
+
+            "success": False,
+
+            "message":
+
+            "Internal Server Error"
+
+        }
+
+    ),500
+
+
+############################################################
+# Before Request
+############################################################
+
+@app.before_request
+
+def before_request():
+
+    logger.info(
+
+        "Incoming Request"
+
+    )
+
+############################################################
+# After Request
+############################################################
+
+@app.after_request
+
+def after_request(response):
+
+    response.headers[
+
+        "X-Powered-By"
+
+    ] = "Marketing Intelligence Platform"
+
+    return response
+
+############################################################
+# Health Check
+############################################################
+
+@app.route(
+
+    "/ping"
+
+)
+
+def ping():
+
+    return {
+
+        "status":"OK"
+
+    }
+
+############################################################
 
 if __name__ == "__main__":
+
     app.run(
-        host=app.config.get("HOST", "0.0.0.0"),
-        port=int(app.config.get("PORT", 5000)),
-        debug=app.config.get("DEBUG", False),
+
+        host="0.0.0.0",
+
+        port=5000,
+
+        debug=True
+
     )
+

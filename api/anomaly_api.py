@@ -1,62 +1,124 @@
 """
-api/anomaly_api.py - Anomaly Detection Blueprint
-=================================================
-Marketing Intelligence AI Platform
+anomaly_api.py
 
-REST API endpoints for the Anomaly Detection module.
+Anomaly Detection API
+
+Endpoint
+
+POST /anomaly/detect
 """
 
-import logging
+from werkzeug.exceptions import HTTPException
+from pathlib import Path
 
-from flask import Blueprint, jsonify, request
+import pandas as pd
 
-logger = logging.getLogger(__name__)
+from flask import Blueprint
+from flask import jsonify
+from flask import request
 
-anomaly_blueprint = Blueprint("anomaly", __name__)
-
-
-# ---------------------------------------------------------------------------
-# Routes
-# ---------------------------------------------------------------------------
-
-
-@anomaly_blueprint.route("/detect", methods=["POST"])
-def detect_anomalies():
-    """
-    Detect anomalies in campaign metrics.
-
-    Request Body (JSON):
-        {
-            "data": [ { metric record }, ... ]
-        }
-
-    Returns:
-        JSON: { "anomalies": [ { "index": int, "score": float,
-                                  "is_anomaly": bool }, ... ] }
-
-    TODO:
-        - Validate and deserialise input payload.
-        - Call anomaly_detection.inference.AnomalyInferencer.detect().
-        - Return anomaly scores and labels.
-    """
-    payload = request.get_json(silent=True)
-    if payload is None:
-        return jsonify({"error": "Invalid or missing JSON body."}), 400
-
-    logger.info("Anomaly detection requested with %d records.", len(payload.get("data", [])))
-
-    # TODO: Implement anomaly detection pipeline.
-    return jsonify({"anomalies": [], "message": "TODO: Anomaly detection not yet integrated."}), 200
+from anomaly_detection.inference import (
+    detect_anomalies
+)
 
 
-@anomaly_blueprint.route("/summary", methods=["GET"])
-def anomaly_summary():
-    """
-    Return a summary of detected anomalies over a date range.
+anomaly_bp = Blueprint(
+    "anomaly",
+    __name__
+)
 
-    TODO:
-        - Accept ?start_date=&end_date= query params.
-        - Fetch stored anomaly data from the database or data/outputs/anomalies.csv.
-    """
-    # TODO: Implement anomaly summary retrieval.
-    return jsonify({"summary": {}, "message": "TODO: Anomaly summary not yet implemented."}), 200
+
+############################################################
+
+def load_dataframe(filepath):
+
+    extension = Path(filepath).suffix.lower()
+
+    if extension == ".csv":
+        return pd.read_csv(filepath)
+
+    elif extension in [".xlsx", ".xls"]:
+        return pd.read_excel(filepath)
+
+    raise ValueError(
+        "Unsupported file format."
+    )
+
+
+############################################################
+
+@anomaly_bp.route(
+    "/detect",
+    methods=["POST"]
+)
+
+def detect():
+
+    try:
+
+        body = request.get_json()
+
+        if body is None:
+
+            return jsonify({
+
+                "success": False,
+
+                "message": "JSON body required."
+
+            }), 400
+
+        filepath = body.get("filepath")
+
+        if not filepath:
+
+            return jsonify({
+
+                "success": False,
+
+                "message": "filepath missing."
+
+            }), 400
+
+        dataframe = load_dataframe(filepath)
+
+        result = detect_anomalies(dataframe)
+
+        return jsonify({
+
+            "success": True,
+
+            "result": result
+
+        })
+
+    except FileNotFoundError:
+
+        return jsonify({
+
+            "success": False,
+
+            "message": "Dataset not found."
+
+        }), 404
+
+    except HTTPException as error:
+
+        return jsonify({
+
+            "success": False,
+
+            "message": error.description
+
+        }), error.code
+
+    except Exception as error:
+
+        return jsonify({
+
+            "success": False,
+
+            "message": str(error)
+
+        }), 500
+

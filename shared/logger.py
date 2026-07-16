@@ -1,83 +1,229 @@
 """
-shared/logger.py - Centralised Logging Setup
-=============================================
-Marketing Intelligence AI Platform
+shared/logger.py
 
-Configures the root logger and per-module file handlers so that all
-application logs are written to the logs/ directory.
+Universal Logging Utility
+
+Features
+--------
+✓ Console Logging
+✓ File Logging
+✓ Log Rotation
+✓ Multiple Logger Support
+✓ Singleton Logger
 """
 
 import logging
-import os
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
+
+from shared.constants import LOGS_DIR
 
 
-def setup_logger(
-    log_dir: str = "logs",
-    log_level: str = "INFO",
-    max_bytes: int = 10 * 1024 * 1024,  # 10 MB
-    backup_count: int = 5,
-) -> None:
-    """
-    Configure application-wide logging.
+class LoggerManager:
 
-    Sets up:
-        - A streaming handler (stdout) for all log messages.
-        - Rotating file handlers for ``app.log``, ``api.log``, and
-          ``model.log``.
+    def __init__(self):
 
-    Args:
-        log_dir: Directory where log files will be written.
-        log_level: Minimum log level (e.g. ``"DEBUG"``, ``"INFO"``).
-        max_bytes: Maximum size in bytes before rotation.
-        backup_count: Number of rotated log files to retain.
-    """
-    os.makedirs(log_dir, exist_ok=True)
+        LOGS_DIR.mkdir(
 
-    numeric_level = getattr(logging, log_level.upper(), logging.INFO)
-    log_format = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
-    formatter = logging.Formatter(log_format)
+            parents=True,
 
-    root_logger = logging.getLogger()
-    root_logger.setLevel(numeric_level)
+            exist_ok=True
 
-    # Remove existing handlers to avoid duplicate log entries on reload.
-    root_logger.handlers.clear()
+        )
 
-    # ------------------------------------------------------------------
-    # Stream handler (console)
-    # ------------------------------------------------------------------
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(formatter)
-    root_logger.addHandler(stream_handler)
+        self.loggers = {}
 
-    # ------------------------------------------------------------------
-    # File handlers
-    # ------------------------------------------------------------------
-    log_files = {
-        "app": os.path.join(log_dir, "app.log"),
-        "api": os.path.join(log_dir, "api.log"),
-        "model": os.path.join(log_dir, "model.log"),
-    }
+    ##########################################################
 
-    for _name, path in log_files.items():
-        handler = RotatingFileHandler(path, maxBytes=max_bytes, backupCount=backup_count)
-        handler.setFormatter(formatter)
-        root_logger.addHandler(handler)
+    def get_logger(
 
-    logging.getLogger(__name__).info(
-        "Logging initialised. Level=%s, LogDir=%s", log_level, log_dir
+        self,
+
+        name="MarketingAI",
+
+        logfile=None,
+
+        level=logging.INFO
+
+    ):
+
+        if name in self.loggers:
+
+            return self.loggers[name]
+
+        logger = logging.getLogger(name)
+
+        logger.setLevel(level)
+
+        logger.propagate = False
+
+        formatter = logging.Formatter(
+
+            "%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+
+            "%Y-%m-%d %H:%M:%S"
+
+        )
+
+        ##################################################
+        # Console Handler
+        ##################################################
+
+        console_handler = logging.StreamHandler()
+
+        console_handler.setFormatter(
+
+            formatter
+
+        )
+
+        logger.addHandler(
+
+            console_handler
+
+        )
+
+        ##################################################
+        # File Handler
+        ##################################################
+
+        if logfile is None:
+
+            logfile = LOGS_DIR / f"{name.lower()}.log"
+
+        else:
+
+            logfile = Path(logfile)
+
+        logfile.parent.mkdir(
+
+            parents=True,
+
+            exist_ok=True
+
+        )
+
+        file_handler = RotatingFileHandler(
+
+            logfile,
+
+            maxBytes=5 * 1024 * 1024,
+
+            backupCount=5,
+
+            encoding="utf-8"
+
+        )
+
+        file_handler.setFormatter(
+
+            formatter
+
+        )
+
+        logger.addHandler(
+
+            file_handler
+
+        )
+
+        self.loggers[name] = logger
+
+        return logger
+
+    ##########################################################
+
+    def training_logger(self):
+
+        return self.get_logger(
+
+            "Training",
+
+            LOGS_DIR / "training.log"
+
+        )
+
+    ##########################################################
+
+    def inference_logger(self):
+
+        return self.get_logger(
+
+            "Inference",
+
+            LOGS_DIR / "inference.log"
+
+        )
+
+    ##########################################################
+
+    def api_logger(self):
+
+        return self.get_logger(
+
+            "API",
+
+            LOGS_DIR / "api.log"
+
+        )
+
+    ##########################################################
+
+    def error_logger(self):
+
+        return self.get_logger(
+
+            "Error",
+
+            LOGS_DIR / "error.log",
+
+            logging.ERROR
+
+        )
+
+
+##############################################################
+
+_logger_manager = LoggerManager()
+
+
+def get_logger(
+
+    name="MarketingAI",
+
+    logfile=None,
+
+    level=logging.INFO
+
+):
+
+    return _logger_manager.get_logger(
+
+        name,
+
+        logfile,
+
+        level
+
     )
 
 
-def get_logger(name: str) -> logging.Logger:
-    """
-    Return a named logger instance.
+def training_logger():
 
-    Args:
-        name: Logger name (typically ``__name__``).
+    return _logger_manager.training_logger()
 
-    Returns:
-        logging.Logger: Configured logger.
-    """
-    return logging.getLogger(name)
+
+def inference_logger():
+
+    return _logger_manager.inference_logger()
+
+
+def api_logger():
+
+    return _logger_manager.api_logger()
+
+
+def error_logger():
+
+    return _logger_manager.error_logger()
+

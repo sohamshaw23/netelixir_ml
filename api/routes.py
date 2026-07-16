@@ -1,50 +1,69 @@
 """
-api/routes.py - Main Web Routes Blueprint
-==========================================
-Marketing Intelligence AI Platform
+routes.py
 
-Serves HTML page templates (index, dashboard, upload, result).
+Registers all Blueprints
 """
 
-import logging
+from flask import Blueprint
 
-from flask import Blueprint, render_template
+from .health import health_bp
+from .upload import upload_bp
 
-logger = logging.getLogger(__name__)
-
-routes_blueprint = Blueprint("routes", __name__)
-
-
-# ---------------------------------------------------------------------------
-# Pages
-# ---------------------------------------------------------------------------
+from .revenue_api import revenue_bp
+from .anomaly_api import anomaly_bp
+from .segmentation_api import segmentation_bp
+from .creative_api import creative_bp
 
 
-@routes_blueprint.route("/", methods=["GET"])
-def index():
-    """Render the landing / home page."""
-    logger.debug("Serving index page.")
-    return render_template("index.html")
+def register_routes(app):
 
+    app.register_blueprint(
 
-@routes_blueprint.route("/dashboard", methods=["GET"])
-def dashboard():
-    """Render the main analytics dashboard."""
-    logger.debug("Serving dashboard page.")
-    # TODO: Pass real KPI data fetched from the DB / cache.
-    return render_template("dashboard.html")
+        health_bp,
 
+        url_prefix="/health"
 
-@routes_blueprint.route("/upload", methods=["GET"])
-def upload_page():
-    """Render the data upload page."""
-    logger.debug("Serving upload page.")
-    return render_template("upload.html")
+    )
 
+    app.register_blueprint(
 
-@routes_blueprint.route("/result", methods=["GET"])
-def result_page():
-    """Render the results / prediction output page."""
-    logger.debug("Serving result page.")
-    # TODO: Pass prediction results from session or query params.
-    return render_template("result.html")
+        upload_bp,
+
+        url_prefix="/upload"
+
+    )
+
+    app.register_blueprint(
+
+        revenue_bp,
+
+        url_prefix="/revenue"
+
+    )
+
+    app.register_blueprint(
+
+        anomaly_bp,
+
+        url_prefix="/anomaly"
+
+    )
+
+    app.register_blueprint(
+
+        segmentation_bp,
+
+        url_prefix="/segment"
+
+    )
+
+    app.register_blueprint(
+
+        creative_bp,
+
+        url_prefix="/creative"
+
+    )
+
+    return app
+

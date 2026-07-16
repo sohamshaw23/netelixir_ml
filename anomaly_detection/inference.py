@@ -1,60 +1,151 @@
 """
-anomaly_detection/inference.py - Anomaly Detection Inference Engine
-===================================================================
-Marketing Intelligence AI Platform
+inference.py
+------------
+
+Inference pipeline for Anomaly Detection.
+
+This module loads the trained Isolation Forest model,
+detects anomalies, summarizes results, and prepares
+JSON-compatible output for the Flask API.
 """
 
-import logging
-from typing import Any, Dict, List
+import pandas as pd
 
-import numpy as np
-
-from anomaly_detection.config import ANOMALY_SCORE_THRESHOLD, ISOLATION_FOREST_MODEL_PATH
-from anomaly_detection.preprocess import AnomalyPreprocessor
-from shared.constants import ANOMALY_LABEL_ANOMALY, ANOMALY_LABEL_NORMAL
-from shared.helper import load_model
-
-logger = logging.getLogger(__name__)
+from .detect import AnomalyDetector
 
 
-class AnomalyInferencer:
+class AnomalyInference:
+
+    def __init__(self):
+
+        self.detector = AnomalyDetector()
+
+    # --------------------------------------------------
+
+    def analyze(self, dataframe):
+
+        results = self.detector.detect(dataframe)
+
+        total = len(results)
+
+        normal = len(results[results["Status"] == "Normal"])
+
+        anomalies = len(results[results["Status"] == "Anomaly"])
+
+        critical = len(results[
+            results["Severity"] == "Critical"
+        ])
+
+        high = len(results[
+            results["Severity"] == "High"
+        ])
+
+        medium = len(results[
+            results["Severity"] == "Medium"
+        ])
+
+        low = len(results[
+            results["Severity"] == "Low"
+        ])
+
+        average_score = float(
+            results["Anomaly_Score"].mean()
+        )
+
+        top_anomalies = (
+
+            results
+
+            .sort_values(
+
+                "Anomaly_Score"
+
+            )
+
+            .head(10)
+
+            .to_dict(
+
+                orient="records"
+
+            )
+
+        )
+
+        response = {
+
+            "summary": {
+
+                "total_campaigns": total,
+
+                "normal_campaigns": normal,
+
+                "anomalous_campaigns": anomalies,
+
+                "critical": critical,
+
+                "high": high,
+
+                "medium": medium,
+
+                "low": low,
+
+                "average_score": average_score
+
+            },
+
+            "top_anomalies": top_anomalies,
+
+            "results": results.to_dict(
+
+                orient="records"
+
+            )
+
+        }
+
+        return response
+
+
+# ------------------------------------------------------
+
+
+_detector = None
+
+
+def detect_anomalies(df: pd.DataFrame):
+
     """
-    Loads the trained Isolation Forest and performs anomaly detection.
+    Function used by Flask app.py
 
-    TODO:
-        - Load model from disk on init.
-        - Implement preprocess() method.
-        - Implement detect() to return anomaly labels and scores.
+    Example:
+
+    from anomaly_detection.inference
+    import detect_anomalies
+
+    result = detect_anomalies(df)
     """
 
-    def __init__(self) -> None:
-        self.model = None  # TODO: load_model(ISOLATION_FOREST_MODEL_PATH)
-        self.preprocessor = AnomalyPreprocessor()
-        self._model_loaded: bool = False
-        logger.info("AnomalyInferencer initialised. TODO: Load model.")
+    global _detector
 
-    def load_model(self) -> None:
-        """Load model artefact from disk. TODO: Implement."""
-        # TODO: self.model = load_model(ISOLATION_FOREST_MODEL_PATH)
-        self._model_loaded = True
-        logger.info("Anomaly model loaded. TODO: Implement actual loading.")
+    if _detector is None:
 
-    def detect(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """
-        Run anomaly detection on *records*.
+        _detector = AnomalyInference()
 
-        Args:
-            records: List of metric record dictionaries.
+    return _detector.analyze(df)
 
-        Returns:
-            List of dicts with keys: index, score, is_anomaly, label.
 
-        TODO: Implement end-to-end detection pipeline.
-        """
-        # TODO: Implement detection.
-        logger.info("Running anomaly detection on %d records. TODO: Implement.", len(records))
-        return []
+# ------------------------------------------------------
 
-    def _label(self, prediction: int) -> str:
-        """Map IsolationForest prediction (+1/-1) to a human-readable label."""
-        return ANOMALY_LABEL_ANOMALY if prediction == -1 else ANOMALY_LABEL_NORMAL
+
+if __name__ == "__main__":
+
+    sample = pd.read_csv(
+
+        "../data/processed/test.csv"
+
+    )
+
+    response = detect_anomalies(sample)
+
+    print(response["summary"])

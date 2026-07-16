@@ -1,95 +1,214 @@
 """
-tests/test_preprocessing.py - Preprocessing Unit Tests
-=======================================================
-Marketing Intelligence AI Platform
+test_preprocessing.py
 
-Unit tests for preprocessing classes in all ML modules.
+Tests preprocessing and feature engineering.
 """
 
 import pandas as pd
 import numpy as np
 import pytest
 
-from shared.preprocess import SharedPreprocessor
-from revenue_drop_risk.preprocess import RevenuePreprocessor
-from anomaly_detection.preprocess import AnomalyPreprocessor
-from customer_segmentation.preprocess import SegmentationPreprocessor
-from creative_performance.preprocess import CreativePreprocessor
+# Revenue Model
+from revenue_drop_risk.preprocess import preprocess as revenue_preprocess
+from revenue_drop_risk.feature_engineering import create_features as revenue_features
+
+# Anomaly Model
+from anomaly_detection.preprocess import preprocess as anomaly_preprocess
+from anomaly_detection.feature_engineering import create_features as anomaly_features
+
+# Segmentation Model
+from customer_segmentation.preprocess import preprocess as segmentation_preprocess
+from customer_segmentation.feature_engineering import create_features as segmentation_features
+
+# Creative Model
+from creative_performance.preprocess import preprocess as creative_preprocess
+from creative_performance.feature_engineering import create_features as creative_features
 
 
-# ---------------------------------------------------------------------------
-# Shared preprocessor
-# ---------------------------------------------------------------------------
+###########################################################
+# Revenue Tests
+###########################################################
+
+def test_revenue_preprocess(sample_dataframe):
+
+    df = revenue_preprocess(sample_dataframe.copy())
+
+    assert isinstance(df, pd.DataFrame)
+
+    assert df.isnull().sum().sum() == 0
+
+    assert len(df.columns) > 0
 
 
-def test_shared_preprocessor_instantiates():
-    preprocessor = SharedPreprocessor()
-    assert preprocessor is not None
+def test_revenue_feature_engineering(sample_dataframe):
+
+    df = revenue_features(sample_dataframe.copy())
+
+    assert "Revenue_per_Click" in df.columns
+
+    assert "Conversion_Rate" in df.columns
+
+    assert "Revenue_to_Spend" in df.columns
+
+    assert "Spend_per_Conversion" in df.columns
+
+    assert "CTR_ROAS" in df.columns
+
+    assert "Log_Revenue" in df.columns
 
 
-def test_shared_preprocessor_transform_before_fit_raises():
-    preprocessor = SharedPreprocessor()
-    preprocessor._is_fitted = False
-    with pytest.raises(RuntimeError):
-        preprocessor.transform(pd.DataFrame(), [], [])
+###########################################################
+# Anomaly Tests
+###########################################################
+
+def test_anomaly_preprocess(sample_dataframe):
+
+    df = anomaly_preprocess(sample_dataframe.copy())
+
+    assert df.isnull().sum().sum() == 0
 
 
-# ---------------------------------------------------------------------------
-# Revenue preprocessor
-# ---------------------------------------------------------------------------
+def test_anomaly_feature_engineering(sample_dataframe):
+
+    df = anomaly_features(sample_dataframe.copy())
+
+    assert "Revenue_per_Click" in df.columns
+
+    assert "Log_Spend" in df.columns
 
 
-def test_revenue_preprocessor_instantiates():
-    preprocessor = RevenuePreprocessor()
-    assert preprocessor is not None
+###########################################################
+# Segmentation Tests
+###########################################################
+
+def test_segmentation_preprocess(sample_dataframe):
+
+    df = segmentation_preprocess(sample_dataframe.copy())
+
+    assert df.isnull().sum().sum() == 0
 
 
-def test_revenue_engineer_target_adds_column():
-    preprocessor = RevenuePreprocessor()
-    df = pd.DataFrame({"revenue": [100, 200, 150, 80]})
-    result = preprocessor.engineer_target(df)
-    assert preprocessor.target_column in result.columns
+def test_segmentation_features(sample_dataframe):
+
+    df = segmentation_features(sample_dataframe.copy())
+
+    assert "CTR_ROAS" in df.columns
+
+    assert "Log_Revenue" in df.columns
 
 
-# ---------------------------------------------------------------------------
-# Anomaly preprocessor
-# ---------------------------------------------------------------------------
+###########################################################
+# Creative Tests
+###########################################################
+
+def test_creative_preprocess(sample_dataframe):
+
+    df = creative_preprocess(sample_dataframe.copy())
+
+    assert df.isnull().sum().sum() == 0
 
 
-def test_anomaly_preprocessor_instantiates():
-    preprocessor = AnomalyPreprocessor()
-    assert preprocessor is not None
+def test_creative_features(sample_dataframe):
+
+    df = creative_features(sample_dataframe.copy())
+
+    assert "Revenue_to_Spend" in df.columns
+
+    assert "Spend_per_Conversion" in df.columns
 
 
-def test_anomaly_select_features_returns_dataframe():
-    preprocessor = AnomalyPreprocessor()
-    df = pd.DataFrame({"clicks": [10, 20], "impressions": [100, 200]})
-    result = preprocessor.select_features(df)
-    assert isinstance(result, pd.DataFrame)
+###########################################################
+# Missing Values
+###########################################################
+
+def test_missing_values():
+
+    df = pd.DataFrame({
+
+        "Spend":[1000, None],
+
+        "Revenue":[None,5000],
+
+        "Clicks":[120,None],
+
+        "CampaignType":["Search",None]
+
+    })
+
+    processed = revenue_preprocess(df)
+
+    assert processed.isnull().sum().sum() == 0
 
 
-# ---------------------------------------------------------------------------
-# Segmentation preprocessor
-# ---------------------------------------------------------------------------
+###########################################################
+# Empty DataFrame
+###########################################################
+
+def test_empty_dataframe():
+
+    df = pd.DataFrame()
+
+    with pytest.raises(Exception):
+
+        revenue_preprocess(df)
 
 
-def test_segmentation_preprocessor_instantiates():
-    preprocessor = SegmentationPreprocessor()
-    assert preprocessor is not None
+###########################################################
+# Numeric Scaling
+###########################################################
+
+def test_numeric_scaling(sample_dataframe):
+
+    processed = revenue_preprocess(sample_dataframe.copy())
+
+    numeric = processed.select_dtypes(
+
+        include=np.number
+
+    )
+
+    assert len(numeric.columns) > 0
 
 
-# ---------------------------------------------------------------------------
-# Creative preprocessor
-# ---------------------------------------------------------------------------
+###########################################################
+# Feature Count
+###########################################################
+
+def test_feature_count(sample_dataframe):
+
+    original = len(sample_dataframe.columns)
+
+    engineered = revenue_features(sample_dataframe.copy())
+
+    assert len(engineered.columns) > original
 
 
-def test_creative_preprocessor_instantiates():
-    preprocessor = CreativePreprocessor()
-    assert preprocessor is not None
+###########################################################
+# Data Type Validation
+###########################################################
+
+def test_return_dataframe(sample_dataframe):
+
+    df = revenue_preprocess(sample_dataframe.copy())
+
+    assert isinstance(df, pd.DataFrame)
 
 
-def test_creative_engineer_target_adds_column():
-    preprocessor = CreativePreprocessor()
-    df = pd.DataFrame({"impressions": [1000, 5000], "clicks": [50, 200], "revenue": [300.0, 1500.0]})
-    result = preprocessor.engineer_target(df)
-    assert preprocessor.target_column in result.columns
+###########################################################
+# Duplicate Rows
+###########################################################
+
+def test_duplicate_rows(sample_dataframe):
+
+    duplicated = pd.concat(
+
+        [sample_dataframe, sample_dataframe],
+
+        ignore_index=True
+
+    )
+
+    processed = revenue_preprocess(duplicated)
+
+    assert len(processed) == len(duplicated)
+

@@ -1,78 +1,141 @@
 """
-api/revenue_api.py - Revenue Drop Risk Blueprint
-==================================================
-Marketing Intelligence AI Platform
+revenue_api.py
 
-REST API endpoints for the Revenue Drop Risk prediction module.
+Revenue Drop Risk Prediction API
+
+Endpoint
+
+POST /revenue/predict
 """
 
-import logging
+from werkzeug.exceptions import HTTPException
+from pathlib import Path
 
-from flask import Blueprint, jsonify, request
+import pandas as pd
 
-logger = logging.getLogger(__name__)
+from flask import Blueprint
+from flask import jsonify
+from flask import request
 
-revenue_blueprint = Blueprint("revenue", __name__)
-
-
-# ---------------------------------------------------------------------------
-# Routes
-# ---------------------------------------------------------------------------
-
-
-@revenue_blueprint.route("/predict", methods=["POST"])
-def predict_revenue_risk():
-    """
-    Predict revenue drop risk for given campaign data.
-
-    Request Body (JSON):
-        {
-            "data": [ { campaign record }, ... ]
-        }
-
-    Returns:
-        JSON: { "predictions": [ { "campaign_id": str, "risk_score": float,
-                                   "risk_label": str }, ... ] }
-
-    TODO:
-        - Deserialise and validate input payload.
-        - Call revenue_drop_risk.inference.RevenueRiskInferencer.predict().
-        - Return SHAP explanation values alongside predictions.
-    """
-    payload = request.get_json(silent=True)
-    if payload is None:
-        return jsonify({"error": "Invalid or missing JSON body."}), 400
-
-    # TODO: Implement prediction pipeline.
-    logger.info("Revenue risk prediction requested with %d records.", len(payload.get("data", [])))
-
-    placeholder_response = {
-        "predictions": [],
-        "message": "TODO: Revenue risk model not yet integrated.",
-    }
-    return jsonify(placeholder_response), 200
+from revenue_drop_risk.inference import (
+    predict_revenue_risk
+)
 
 
-@revenue_blueprint.route("/explain", methods=["POST"])
-def explain_revenue_risk():
-    """
-    Return SHAP explanation for a single revenue risk prediction.
+revenue_bp = Blueprint(
 
-    TODO:
-        - Call revenue_drop_risk.shap_analysis.SHAPAnalyser.explain().
-        - Return feature importances as JSON.
-    """
-    # TODO: Implement SHAP explanation endpoint.
-    return jsonify({"message": "TODO: SHAP explanation not yet implemented."}), 200
+    "revenue",
+
+    __name__
+
+)
+
+###########################################################
 
 
-@revenue_blueprint.route("/history", methods=["GET"])
-def prediction_history():
-    """
-    Return historical revenue risk predictions.
+def load_dataframe(filepath):
 
-    TODO:
-        - Fetch stored predictions from the database.
-    """
-    # TODO: Implement history retrieval.
-    return jsonify({"history": [], "message": "TODO: History not yet implemented."}), 200
+    extension = Path(filepath).suffix.lower()
+
+    if extension == ".csv":
+
+        return pd.read_csv(filepath)
+
+    elif extension in [".xlsx", ".xls"]:
+
+        return pd.read_excel(filepath)
+
+    else:
+
+        raise ValueError(
+
+            "Unsupported file format."
+
+        )
+
+
+###########################################################
+
+
+@revenue_bp.route(
+
+    "/predict",
+
+    methods=["POST"]
+
+)
+
+def predict():
+
+    try:
+
+        body = request.get_json()
+
+        if body is None:
+
+            return jsonify({
+
+                "success": False,
+
+                "message": "JSON body required."
+
+            }), 400
+
+        filepath = body.get("filepath")
+
+        if not filepath:
+
+            return jsonify({
+
+                "success": False,
+
+                "message": "filepath missing."
+
+            }), 400
+
+        dataframe = load_dataframe(filepath)
+
+        prediction = predict_revenue_risk(
+
+            dataframe
+
+        )
+
+        return jsonify({
+
+            "success": True,
+
+            "prediction": prediction
+
+        })
+
+    except FileNotFoundError:
+
+        return jsonify({
+
+            "success": False,
+
+            "message": "Dataset not found."
+
+        }), 404
+
+    except HTTPException as error:
+
+        return jsonify({
+
+            "success": False,
+
+            "message": error.description
+
+        }), error.code
+
+    except Exception as error:
+
+        return jsonify({
+
+            "success": False,
+
+            "message": str(error)
+
+        }), 500
+
