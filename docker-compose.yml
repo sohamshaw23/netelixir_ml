@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  # ----------------------------------------------------------------
+  # Flask application
+  # ----------------------------------------------------------------
+  web:
+    build: .
+    container_name: marketing_ai_web
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - FLASK_ENV=production
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  # ----------------------------------------------------------------
+  # Redis (placeholder — for future caching / task queue)
+  # TODO: Wire up Celery or Flask-Caching when async tasks are needed.
+  # ----------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: marketing_ai_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+volumes:
+  data:
+  models:
+  logs:
+  uploads:
