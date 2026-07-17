@@ -28,6 +28,8 @@ from anomaly_detection.train import AnomalyTrainer
 from customer_segmentation.train import CustomerSegmentationTrainer
 
 from creative_performance.train import CreativeTrainer
+from campaign_intelligence.train import CampaignIntelligenceTrainer
+
 
 ##############################################################
 
@@ -105,6 +107,20 @@ class TrainingPipeline:
 
     ##########################################################
 
+    def train_campaign_intel(self):
+
+        self.separator()
+
+        print("Training Campaign Intelligence Regression Models (LGBM)")
+
+        trainer = CampaignIntelligenceTrainer()
+
+        trainer.retrain_all()
+
+        print("Campaign Intelligence Models Completed")
+
+    ##########################################################
+
     def summary(self):
 
         elapsed = time.time() - self.start
@@ -131,7 +147,10 @@ class TrainingPipeline:
 
             self.train_creative()
 
+            self.train_campaign_intel()
+
             self.summary()
+
 
         except Exception:
 

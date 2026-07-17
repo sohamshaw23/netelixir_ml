@@ -39,9 +39,18 @@ def health():
 
             "Customer Segmentation",
 
-            "Creative Performance"
+            "Creative Performance",
+
+            "Revenue Prediction",
+
+            "ROAS Prediction",
+
+            "Campaign Forecasting",
+
+            "Channel Forecasting"
 
         ]
+
 
     }
 

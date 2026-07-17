@@ -13,6 +13,7 @@ from .revenue_api import revenue_bp
 from .anomaly_api import anomaly_bp
 from .segmentation_api import segmentation_bp
 from .creative_api import creative_bp
+from .campaign_api import campaign_bp
 
 
 def register_routes(app):
@@ -65,5 +66,12 @@ def register_routes(app):
 
     )
 
-    return app
+    app.register_blueprint(
 
+        campaign_bp,
+
+        url_prefix="/campaign"
+
+    )
+
+    return app

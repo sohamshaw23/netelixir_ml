@@ -212,6 +212,28 @@ class ModelRegistry:
 
     ##########################################################
 
+    def load_lgbm_revenue(self):
+        path = self.base_dir / "../campaign_intelligence/models/revenue_model.pkl"
+        self.models["lgbm_revenue"] = joblib.load(path)
+        return self.models["lgbm_revenue"]
+
+    def load_lgbm_roas(self):
+        path = self.base_dir / "../campaign_intelligence/models/roas_model.pkl"
+        self.models["lgbm_roas"] = joblib.load(path)
+        return self.models["lgbm_roas"]
+
+    def load_lgbm_campaign(self):
+        path = self.base_dir / "../campaign_intelligence/models/campaign_model.pkl"
+        self.models["lgbm_campaign"] = joblib.load(path)
+        return self.models["lgbm_campaign"]
+
+    def load_lgbm_channel(self):
+        path = self.base_dir / "../campaign_intelligence/models/channel_model.pkl"
+        self.models["lgbm_channel"] = joblib.load(path)
+        return self.models["lgbm_channel"]
+
+    ##########################################################
+
     def load_all(self):
 
         self.load_xgboost()
@@ -234,6 +256,14 @@ class ModelRegistry:
 
         self.load_shap_explainer()
 
+        self.load_lgbm_revenue()
+
+        self.load_lgbm_roas()
+
+        self.load_lgbm_campaign()
+
+        self.load_lgbm_channel()
+
         return self.models
 
     ##########################################################
@@ -254,4 +284,3 @@ class ModelRegistry:
 ##############################################################
 
 registry = ModelRegistry()
-
