@@ -60,3 +60,7 @@ uploads/
 # macOS
 .DS_Store
 Thumbs.db
+
+# Hackathon outputs
+output/
+
